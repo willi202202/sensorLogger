@@ -1,0 +1,77 @@
+1. System updaten
+sudo apt update
+sudo apt upgrade -y
+
+2. Basis-Tools
+sudo apt install -y git curl
+
+3. Node.js (am besten LTS, z. B. 20)
+curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+sudo apt install -y nodejs
+Pruefen:
+node -v
+==> v20.19.6
+npm -v
+==> 10.8.2
+
+4. MQTT-Broker (Mosquitto)
+sudo apt install -y mosquitto mosquitto-clients
+sudo systemctl enable mosquitto
+sudo systemctl start mosquitto
+Check:
+sudo systemctl status mosquitto
+mosquitto_sub -h 127.0.0.1 -t "test" -v &
+mosquitto_pub -h 127.0.0.1 -t "test" -m "hello"
+
+5. Python + MQTT-Library
+sudo apt install -y python3 python3-pip
+sudo apt install python3-paho-mqtt python3-matplotlib
+
+6. MMMMobileAlerts-Repo klonen und Node-Abhaengigkeiten
+cd ~
+git clone https://github.com/sarnau/MMMMobileAlerts.git
+cd MMMMobileAlerts/maserver
+npm install
+
+7. config.json vorbereiten
+cp config-sample.json config.json
+gedit config.json &
+hostname -I
+
+Wichtige Felder (Beispiel):
+{
+  "localIPv4Address": "192.168.1.50",        // IP des Raspis
+  "mqtt": "mqtt://127.0.0.1",
+  "mqtt_home": "mobilealerts/",
+  "mqtt_username": "",
+  "mqtt_password": "",
+  "publish_type": "default",
+  "logfile": "./MobileAlerts.log",
+  "logGatewayInfo": true,
+  "proxyServerPort": 8088,
+  "mobileAlertsCloudForward": true,
+  "serverPost": null,
+  "serverPostUser": null,
+  "serverPostPassword": null,
+  "locale": "de-CH"
+}
+
+ie localIPv4Address ist die Raspi-IP im LAN, z. B. mit hostname -I auslesen.
+proxyServerPort muss zu dem Port passen, den du im Gateway per Proxy setzt (wie vorher 8088).
+
+
+8. Rechte setzen
+chmod +x start_mobilealerts.sh
+chmod +x stop_mobilealerts.sh
+
+9. Start
+./start_mobilealerts.sh
+
+10. Logs anschauen
+tail -f ~/MMMMobileAlerts/maserver/mobilealerts.log
+tail -f ~/MMMMobileAlerts/maserver/python_mqtt.log
+
+9. Stop
+./stop_mobilealerts.sh
+
+
