@@ -1,0 +1,17 @@
+{
+  "localIPv4Address": "192.168.1.38",
+  "mqtt": "mqtt://127.0.0.1",
+  "mqtt_home": "mobilealerts/",
+  "mqtt_username": "",
+  "mqtt_password": "",
+  "publish_type": "default",
+  "sonoffPublish_prefix": null,
+  "logfile": "./MobileAlerts.log",
+  "logGatewayInfo": true,
+  "proxyServerPort": 8088,
+  "mobileAlertsCloudForward": true,
+  "serverPost": null,
+  "serverPostUser": null,
+  "serverPostPassword": null,
+  "locale": "en-US"
+}
