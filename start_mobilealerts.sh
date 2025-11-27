@@ -14,11 +14,11 @@
 LOCAL_IP="192.168.1.50"        # IP des Raspi
 GATEWAY_IP="192.168.1.216"     # Mobile-Alerts Gateway
 PROXY_PORT="8088"              # Muss zu config.json passen!
-REPO_DIR="$HOME/MMMMobileAlerts/maserver"
-PY_SCRIPT="mqtt_console_plot.py"
+REPO_DIR="$HOME/ProjGitLab/MMMMobileAlerts/maserver"
+PY_SCRIPT="$HOME/ProjGitLab/mqtt_console_plot.py"
 
-LOG_NODE="$REPO_DIR/mobilealerts.log"
-LOG_PY="$REPO_DIR/python_mqtt.log"
+LOG_NODE="$HOME/ProjGitLab/sensorLogger/log/mobilealerts.log"
+LOG_PY="$HOME/ProjGitLab/sensorLogger/log/python_mqtt.log"
 
 ### ===============================
 ### 1) MQTT-Broker (Mosquitto) starten
