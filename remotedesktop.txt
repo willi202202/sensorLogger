@@ -1,0 +1,8 @@
+Connecto to Raspi:
+
+With SSH Tunnel:
+27.0.0.1:1080
+raspiroman
+
+Homenet:
+192.168.1.203:3389

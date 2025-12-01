@@ -1,0 +1,27 @@
+[Unit]
+Description=Mobile Alerts Proxy Server
+After=network.target
+
+[Service]
+# WICHTIG: Ersetze /usr/bin/node durch den tatsächlichen Pfad, den 'which node' liefert.
+# WICHTIG: Füge alle deine Kommandozeilen-Argumente (IP, Port) hinzu.
+ExecStart=/usr/bin/node /home/raspiroman/ProjGitLab/MMMMobileAlerts/maserver/mobilealerts.js --localIPv4Address=192.168.1.203 --proxyServerPort=8088
+
+# Das Verzeichnis, in dem sich die Skript-Dateien (wie package.json, conf) befinden.
+WorkingDirectory=/home/raspiroman/ProjGitLab/MMMMobileAlerts/maserver/
+
+# Der Benutzer, unter dem der Dienst ausgeführt werden soll (dein regulärer Benutzer).
+User=raspiroman
+
+# Den Dienst bei Absturz automatisch neu starten.
+Restart=always
+
+# Warte 5 Sekunden nach einem Fehler, bevor neu gestartet wird.
+RestartSec=5
+
+# Standardausgabe (console.log) an das Systemd Journal senden.
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

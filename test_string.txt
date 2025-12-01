@@ -1,0 +1,3 @@
+
+mobilealerts/ hello
+mobilealerts/11566802925f/json{"temperature1":[6.3,6.3],"humidity1":[93,93],"temperature2":[20.7,20.4],"humidity2":[54,59],"temperature3":[15.5,15.4],"humidity3":[62,62],"temperatureIN":[21.6,21.6],"humidityIN":[48,47],"id":"11566802925f","t":"30.11.2025,16:29:33","ut":1764516573,"utms":"2025-11-30T15:29:33.000Z","battery":"ok","offline":false}

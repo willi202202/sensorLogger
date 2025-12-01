@@ -1,3 +1,5 @@
+Sensors im netz: https://measurements.mobile-alerts.eu/Home/SensorsOverview?phoneid=197061365374
+
 1. System updaten
 sudo apt update
 sudo apt upgrade -y
@@ -36,7 +38,7 @@ npm install
 6.1 Fixe IP setzen:
 nmcli device
 nmcli connection show "Wired connection 1"
-sudo nmcli connection modify "Wired connection 1" ipv4.method manual ipv4.addresses 192.168.1.50/24 ipv4.gateway 192.168.1.254 ipv4.dns "1.1.1.1 8.8.8.8"
+sudo nmcli connection modify "Wired connection 1" ipv4.method manual ipv4.addresses 192.168.1.203/24 ipv4.gateway  192.168.1.1 ipv4.dns "1.1.1.1 8.8.8.8"
 sudo nmcli connection down "Wired connection 1"
 sudo nmcli connection up "Wired connection 1"
 sudo reboot
@@ -81,5 +83,39 @@ tail -f ~/MMMMobileAlerts/maserver/python_mqtt.log
 
 9. Stop
 ./stop_mobilealerts.sh
+
+
+
+10. Fehlerbehebung:
+
+Nur Erreichbarkeit der IP	
+ping 192.168.1.203	
+Port-Test Ob Proxy läuft:
+nc -vz 192.168.1.203 8088
+HTTP-Test Proxy antwortet:
+curl http://192.168.1.203:8088
+MQTT-Sniffer:
+mosquitto_sub -t "#" -v
+test senden auf MQTT:
+mosquitto_pub -h 127.0.0.1 -t "mobilealerts/" -m "hello"
+tcpdump kommt was vom Gateway?:
+sudo tcpdump -i eth0 tcp port 8088
+
+
+so hats geklappt:
+sudo systemctl enable mosquitto &
+sudo systemctl start mosquitto
+sudo systemctl status mosquitto
+
+cd /home/raspiroman/ProjGitLab/MMMMobileAlerts/maserver
+node gatewayConfig.js 
+node mobilealerts.js --localIPv4Address=192.168.1.203 --proxyServerPort=8088
+nohup node mobilealerts.js --localIPv4Address=192.168.1.203 --proxyServerPort=8088 > mobilealerts.log 2>&1 &
+ps aux | grep mobilealerts
+
+cd /home/raspiroman/ProjGitLab/sensorLogger
+python mqtt_console_plot.py
+
+
 
 

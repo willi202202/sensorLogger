@@ -1,0 +1,30 @@
+Defaults 
+
+MOBILE-ALERTS Settings & States
+
+
+Software	MOBILE-ALERTS-Gateway V1.50.00
+Compilation Date	02/11/15
+Compilation Time	10:50:00
+Serial No. (hex.)	800E0851
+Serial No. (dec.)	00 91 96 33
+Name	chappelihof gateway
+Registration state	Registered
+Use DHCP	Yes
+Fixed IP	192.168.0.171
+Fixed Netmask	255.255.255.0
+Fixed Gateway	192.168.1.254
+Fixed DNS IP	192.168.1.253
+DHCP valid	Yes
+DHCP IP	192.168.1.200
+DHCP Netmask	255.255.255.0
+DHCP Gateway	192.168.1.1
+DHCP DNS	62.2.17.60
+DNS states	0 / 4
+Data Server Name	www.data199.com
+Use Proxy	No
+Proxy Server Name	
+Proxy Port	0
+Data Server IP	23.97.212.128
+Last contact	176427348100
+RF channel	2
