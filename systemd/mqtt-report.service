@@ -1,0 +1,13 @@
+[Unit]
+Description=Mobile Alerts Weekly Report Generator
+Requires=mqtt-report.timer
+
+[Service]
+User=raspiroman
+WorkingDirectory=/home/raspiroman/ProjGitLab/sensorlogger
+
+# Befehl zum Ausführen des Berichtsgenerators.
+ExecStart=/usr/bin/python3 /home/raspiroman/ProjGitLab/sensorLogger/report_generator.py
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,30 @@
+[Unit]
+Description=Mobile Alerts MQTT-Logger Service
+
+# Stellt sicher, dass das Netzwerk und der Mosquitto-Broker verfügbar sind, bevor dieser Dienst startet.
+After=network.target mosquitto.service
+
+[Service]
+# Der Benutzer, unter dem das Skript ausgeführt wird (muss existieren).
+User=raspiroman
+
+# Das Arbeitsverzeichnis, in dem die Skripte und die mobilealerts.db liegen.
+WorkingDirectory=/home/raspiroman/ProjGitLab/sensorlogger
+
+# Befehl zum Starten des Loggers.
+# Stellt sicher, dass Sie den korrekten Pfad zu Python3 verwenden.
+ExecStart=/usr/bin/python3 mqtt_sqlite_logger.py
+
+# Typ des Prozesses. 'simple' ist Standard.
+Type=simple
+
+# Neustart-Richtlinie: Startet den Dienst automatisch neu, wenn er unerwartet beendet wird.
+Restart=always
+RestartSec=10
+
+# Standardausgabe (console.log) und Fehler in das Systemd Journal umleiten.
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

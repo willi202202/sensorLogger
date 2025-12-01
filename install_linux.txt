@@ -100,7 +100,10 @@ test senden auf MQTT:
 mosquitto_pub -h 127.0.0.1 -t "mobilealerts/" -m "hello"
 tcpdump kommt was vom Gateway?:
 sudo tcpdump -i eth0 tcp port 8088
-
+läuft der prozess:
+ps aux | grep mobilealerts.js
+prüfen der logs:
+tail -f /home/raspiroman/mobilealerts.log
 
 so hats geklappt:
 sudo systemctl enable mosquitto &
@@ -115,6 +118,8 @@ ps aux | grep mobilealerts
 
 cd /home/raspiroman/ProjGitLab/sensorLogger
 python mqtt_console_plot.py
+
+
 
 
 

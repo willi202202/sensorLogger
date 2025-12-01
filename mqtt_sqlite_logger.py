@@ -7,7 +7,7 @@ from paho.mqtt import client as mqtt
 # --- KONFIGURATION ---
 BROKER = "127.0.0.1"
 TOPIC  = "mobilealerts/#"
-DB_FILE = "mobilealerts.db"
+DB_FILE = "log/mobilealerts.db"
 
 # WICHTIG: Definiere hier deine Sensor-Mappings!
 SENSOR_MAP = {

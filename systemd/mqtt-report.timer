@@ -1,0 +1,13 @@
+[Unit]
+Description=Timer for Mobile Alerts Weekly Report
+
+[Timer]
+# Führt den Dienst jeden Montag um 8:00 Uhr morgens aus.
+# Format: Wochentag Jahr-Monat-Tag Stunde:Minute:Sekunde
+OnCalendar=Mon --* 08:00:00
+
+#Sicherstellen, dass der Dienst ausgeführt wird, wenn der Timer beim Systemstart abgelaufen war.
+Persistent=true
+
+[Install]
+WantedBy=timers.target
