@@ -1,0 +1,35 @@
+firewall installieren:
+sudo apt update
+sudo apt upgrade
+sudo apt install ufw
+
+Eingehenden Verkehr standardmäßig blockieren:
+sudo ufw default deny incoming
+
+Ausgehenden Verkehr standardmäßig erlauben:
+sudo ufw default allow outgoing
+
+Ports für wichtige Dienste öffnen
+ssh:
+sudo ufw allow 4422/tcp comment 'SSH Zugang Raspberry Pi'
+vnc/xrdp:
+sudo ufw allow 3389/tcp comment 'XRDP (Remotedsktop) Zugang Raspberry Pi'
+webserver:
+sudo ufw allow 80/tcp
+sudo ufw allow 443/tcp
+
+enable:
+sudo ufw enable
+sudo ufw logging medium
+
+status:
+sudo ufw status
+sudo ufw status verbose
+
+zusatzbefehle:
+Deaktiviert die Firewall vollständig.
+sudo ufw disable
+Entfernt die Regel, die Port 80 erlaubt.
+sudo ufw delete allow 80/tcp
+Setzt die Firewall auf die Standardeinstellungen zurück (löscht alle Regeln).
+sudo ufw reset

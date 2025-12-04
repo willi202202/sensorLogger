@@ -9,5 +9,9 @@ WorkingDirectory=/home/raspiroman/ProjGitLab/sensorlogger
 # Befehl zum Ausführen des Berichtsgenerators.
 ExecStart=/usr/bin/python3 /home/raspiroman/ProjGitLab/sensorLogger/report_generator.py
 
+# Standardausgabe (console.log) an das Systemd Journal senden.
+StandardOutput=journal
+StandardError=journal
+
 [Install]
 WantedBy=multi-user.target

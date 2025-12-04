@@ -4,6 +4,7 @@ sudo apt install fail2ban
 Konfiguration:
 sudo cp /etc/fail2ban/jail.conf /etc/fail2ban/jail.local
 sudo -E gedit /etc/fail2ban/jail.local &
+sudo nano /etc/fail2ban/jail.local &
 
 Handling:
 sudo systemctl status fail2ban
@@ -11,6 +12,7 @@ sudo fail2ban-client status sshd
 sudo fail2ban-client unban --all
 sudo systemctl stop fail2ban
 sudo systemctl restart fail2ban
+sudo journalctl -u fail2ban.service
 sudo journalctl -u fail2ban.service --since "1 minute ago"
 
 pcmanfm&
@@ -19,6 +21,7 @@ abfragen:
 sudo fail2ban-client get sshd bantime
 sudo fail2ban-client get sshd maxretry
 sudo fail2ban-client get sshd findtime
+sudo fail2ban-client get sshd action
 who
 cat .bash_history
 sudo journalctl -u ssh.service

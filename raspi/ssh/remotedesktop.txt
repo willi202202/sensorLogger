@@ -1,0 +1,17 @@
+deactivate vnc:
+sudo systemctl disable vncserver-x11-serviced
+
+install xrdp:
+sudo apt install xrdp
+sudo systemctl enable --now xrdp
+
+Connecto to Raspi:
+hostname -I
+OST: 152.96.147.48
+
+With SSH Tunnel:
+27.0.0.1:1080
+raspiroman
+
+Homenet:
+192.168.1.203:3389
