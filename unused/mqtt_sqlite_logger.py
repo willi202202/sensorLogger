@@ -9,13 +9,6 @@ BROKER = "127.0.0.1"
 TOPIC  = "mobilealerts/#"
 DB_FILE = "log/mobilealerts.db"
 
-# WICHTIG: Definiere hier deine Sensor-Mappings!
-SENSOR_MAP = {
-    "11566802925f": "Garten_Sensor",
-    "001d8c0e0851": "Gateway_ID",
-    # Füge hier weitere Sensor-IDs und deren Namen hinzu!
-}
-
 # --- FUNKTIONEN ZUR DATENBANKVERWALTUNG ---
 
 def initialize_database():
@@ -31,8 +24,7 @@ def initialize_database():
                 timestamp_iso TEXT NOT NULL,
                 datum_utc TEXT,
                 uhrzeit_utc TEXT,
-                sensor_name TEXT,
-                sensor_id_raw TEXT,
+                gateway_id TEXT,
                 temp1 REAL,
                 feuchte1 REAL,
                 temp2 REAL,
@@ -61,7 +53,7 @@ def insert_record(record):
         # SQLite kann Spaltennamen direkt aus einem Dictionary (record) verwenden
         # Wir definieren die Spalten explizit, um die Reihenfolge zu garantieren
         columns = [
-            "timestamp_iso", "datum_utc", "uhrzeit_utc", "sensor_name", "sensor_id_raw",
+            "timestamp_iso", "datum_utc", "uhrzeit_utc", "gateway_id",
             "temp1", "feuchte1", "temp2", "feuchte2", "temp3", "feuchte3", 
             "temp_in", "feuchte_in", "battery_ok"
         ]
@@ -127,19 +119,15 @@ def on_message(client, userdata, msg):
             uhrzeit = utc_timestamp_iso[11:19] if utc_timestamp_iso else None
 
             # --- 2. Batteriestatus-Verarbeitung ---
-            batterie_ok = payload.get("battery", "").lower() == "ok" 
-            
-            # --- 3. Sensor-Mapping ---
-            sensor_id_raw = payload.get("id")
-            sensor_name = SENSOR_MAP.get(sensor_id_raw, sensor_id_raw)
+            batterie_ok = payload.get("battery", "").lower() == "ok"
+            gateway_id = payload.get("id")
 
             # --- 4. Daten-Record erstellen (mit robuster Extraktion) ---
             record = {
                 "timestamp_iso": utc_timestamp_iso,
                 "datum_utc": datum,
                 "uhrzeit_utc": uhrzeit,
-                "sensor_name": sensor_name,
-                "sensor_id_raw": sensor_id_raw,
+                "gateway_id": gateway_id,
                 
                 # Robuste Extraktion der numerischen Werte
                 "temp1": safe_extract_value(payload, "temperature1"),
@@ -157,7 +145,7 @@ def on_message(client, userdata, msg):
             # 5. In SQLite-Datenbank einfügen
             insert_record(record)
             
-            print(f"✅ DB: {sensor_name} | Temp1: {record['temp1']} | Eingefügt.")
+            print(f"✅ id: {gateway_id} | temp_in: {record['temp_in']} | Eingefügt.")
         
         else:
             print(f"ℹ️ {msg.topic}: {msg.payload.decode('utf-8')} (Nicht-JSON-Nachricht ignoriert)")

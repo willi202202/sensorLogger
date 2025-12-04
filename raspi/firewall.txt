@@ -10,10 +10,10 @@ Ausgehenden Verkehr standardmäßig erlauben:
 sudo ufw default allow outgoing
 
 Ports für wichtige Dienste öffnen
-ssh:
 sudo ufw allow 4422/tcp comment 'SSH Zugang Raspberry Pi'
-vnc/xrdp:
 sudo ufw allow 3389/tcp comment 'XRDP (Remotedsktop) Zugang Raspberry Pi'
+sudo ufw allow 8089/tcp comment 'proxyServerPort MobileAlerts'
+sudo ufw allow from 192.168.1.1 comment 'Allow Router'
 webserver:
 sudo ufw allow 80/tcp
 sudo ufw allow 443/tcp
@@ -25,6 +25,9 @@ sudo ufw logging medium
 status:
 sudo ufw status
 sudo ufw status verbose
+
+Geblockte:
+sudo journalctl -k | grep 'UFW BLOCK'
 
 zusatzbefehle:
 Deaktiviert die Firewall vollständig.

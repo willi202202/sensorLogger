@@ -5,3 +5,10 @@ sudo env DISPLAY=$DISPLAY XAUTHORITY=/home/raspiroman/.Xauthority mousepad /etc/
 
 in den hintergrund:
 Ctrl+Z
+
+mosquitto_sub -t "#" -v
+
+# Beispiel für ~/.bashrc
+alias gs='git status'
+alias ga='git add .'
+alias gp='git push'
