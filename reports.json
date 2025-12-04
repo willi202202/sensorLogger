@@ -1,53 +1,15 @@
 [
   {
-    "name": "Täglicher Innen-/Aussentemperatur-Bericht",
+    "name": "Taeglicher Innen-/Aussentemperatur-Bericht",
     "report_id": "temp_daily",
     "sensors": [
-      {"key": "temp_innen", "unit": "°C"},
-      {"key": "temp_aussen1", "unit": "°C"}
+      {"key": "temp_in", "unit": "°C"},
+      {"key": "temp1", "unit": "°C"}
     ],
     "duration_days": 1,
     "log_path": "log/reports/daily_temp",
     "values_period_m": 10,
     "interpolate": "min",
     "max_pdfs": 30
-  },
-  {
-    "name": "Wöchentlicher Feuchtigkeitsbericht",
-    "report_id": "feuchte_weekly",
-    "sensors": [
-      {"key": "feuchte_aussen1", "unit": "%"}
-    ],
-    "duration_days": 7,
-    "log_path": "log/reports/weekly_humidity",
-    "values_period_m": 120,
-    "interpolate": "mean",
-    "max_pdfs": 10
-  },
-  {
-    "name": "Monatlicher Temperatur-Überblick",
-    "report_id": "temp_monthly",
-    "sensors": [
-      {"key": "temp_innen", "unit": "°C"},
-      {"key": "temp_aussen1", "unit": "°C"}
-    ],
-    "duration_days": 30,
-    "log_path": "log/reports/monthly_temp",
-    "values_period_m": 360,
-    "interpolate": "mean",
-    "max_pdfs": 12
-  },
-  {
-    "name": "Jährlicher Gesamtverlauf",
-    "report_id": "temp_yearly",
-    "sensors": [
-      {"key": "temp_innen", "unit": "°C"},
-      {"key": "temp_aussen1", "unit": "°C"}
-    ],
-    "duration_days": 365,
-    "log_path": "log/reports/yearly_temp",
-    "values_period_m": 1440,
-    "interpolate": "mean",
-    "max_pdfs": 5
   }
 ]

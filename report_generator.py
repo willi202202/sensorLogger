@@ -8,12 +8,17 @@ import sys
 import glob
 from datetime import datetime, timedelta
 import warnings
+import pytz # NEU: Für Zeitzonen-Handling
 
 # Unterdrückt Matplotlib-Warnungen, die manchmal im figtext-Bereich auftreten
 warnings.filterwarnings("ignore", category=UserWarning)
 
 # Importiere Konfiguration aus der config.py
 import config
+
+# ⭐ WICHTIG: Ihre lokale Zeitzone definieren (z.B. Europe/Berlin für CET/CEST)
+# Prüfen Sie Ihre Zeitzone mit dem Befehl 'timedatectl' auf dem Raspberry Pi.
+LOCAL_TIMEZONE = 'Europe/Berlin' 
 
 # --- Konstanten und Utility-Funktionen ---
 
@@ -63,43 +68,48 @@ def fetch_and_plot_report(report_config):
     
     print(f"\n--- Starte Bericht: {report_config['name']} ({report_id}) ---")
 
-    # 1. Zeitfenster definieren (Bericht endet heute um Mitternacht UTC)
+    # 1. Zeitfenster definieren (NEUE, zeitzonenbewusste Berechnung)
     
-    # Enddatum ist heute 00:00:00 UTC (der Zeitpunkt des Skriptstarts)
-    report_end_dt = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
-    # Startdatum ist Enddatum minus Dauer
+    local_tz = pytz.timezone(LOCAL_TIMEZONE)
+    
+    # Heutiges Datum in lokaler Zeit (ohne Zeitangabe)
+    today_local = datetime.now(local_tz).replace(hour=0, minute=0, second=0, microsecond=0)
+    
+    # report_end_dt ist heute um 00:00:00 in lokaler Zeit
+    report_end_dt = today_local 
+    
+    # report_start_dt ist duration_days Tage zurück
     report_start_dt = report_end_dt - timedelta(days=duration_days)
     
+    # Wir verwenden NICHT UTC-Strings mehr, sondern lokale, zeitzonenunabhängige Strings 
+    # für die Abfrage, da SQLite Strings ohne Zeitzonen speichert.
     start_time_str = report_start_dt.strftime('%Y-%m-%d %H:%M:%S')
     end_time_str = report_end_dt.strftime('%Y-%m-%d %H:%M:%S')
 
-    # Filename basiert auf dem ENDDATUM des Berichts
+    # Filename basiert auf dem ENDDATUM des Berichts (gestern, 23:59:59 Uhr)
     report_date_str = (report_end_dt - timedelta(seconds=1)).strftime('%Y-%m-%d')
     file_name = f"{report_id}_{report_date_str}.pdf"
     full_file_path = os.path.join(log_path, file_name)
 
     # 2. Existenzprüfung
-    # Verhindert Duplikate für einen spezifischen Endzeitpunkt. Bei rollierenden
-    # Berichten wird die Datei täglich mit neuem Enddatum überschrieben/ersetzt.
     if os.path.exists(full_file_path):
         print(f"   ⚠️ Bericht für {report_date_str} existiert bereits. Überspringe Generierung.")
-        # Führt trotzdem die Archiv-Wartung durch, falls max_pdfs überschritten wurde
         cleanup_old_reports(log_path, report_id, report_config["max_pdfs"])
         return
 
-    print(f"   -> Datenzeitraum: {start_time_str} bis {end_time_str} (UTC)")
+    # ⭐ Wichtig: Ausgabe zeigt nun lokale Zeitzone an (obwohl der String selbst keine TZ hat)
+    print(f"   -> Datenzeitraum (Lokal): {start_time_str} bis {end_time_str}")
     
     # 3. Datenbankabfrage und Glättung
     
     conn = None
-    all_data = [] # Zum Speichern der Statistikdaten
+    all_data = [] 
     
     try:
         conn = sqlite3.connect(config.DB_FILE)
         
         # Liste der DB-Spaltennamen für die Abfrage
         db_cols_to_query = [config.COLUMN_NAMES.get(s['key']) for s in report_config['sensors']]
-        # Entferne None-Werte, falls ein Key in reports.json, aber nicht in config.py existiert
         db_cols_to_query = [col for col in db_cols_to_query if col]
         
         if not db_cols_to_query:
@@ -119,12 +129,14 @@ def fetch_and_plot_report(report_config):
         
         df_raw = pd.read_sql(sql_query, conn)
         
-        if df_raw.empty:
-            print("   ℹ️ Keine Daten für diesen Zeitraum gefunden.")
+        # 🚨 Hinzugefügte Prüfung: Wenn die Abfrage Daten liefert, aber keine Zeile mit Werten
+        if df_raw.empty or len(df_raw.dropna(subset=db_cols_to_query)) == 0:
+            print("   ℹ️ Keine verwertbaren Daten für diesen Zeitraum gefunden.")
             return
 
         # Zeitstempel konvertieren und als Index setzen
-        df_raw[time_col] = pd.to_datetime(df_raw[time_col], utc=True)
+        # Wichtig: Pandas liest den String als NAIVEN (lokalen) Zeitstempel
+        df_raw[time_col] = pd.to_datetime(df_raw[time_col]) 
         df_raw.set_index(time_col, inplace=True)
         
         # DataFrame für den Plot (nach Resampling)
@@ -145,10 +157,8 @@ def fetch_and_plot_report(report_config):
             
             # Resampling-Operation
             if interpolation_method == "min":
-                # Resampling auf Minimum
                 df_resampled = df_raw[db_col].resample(resample_rule).min()
-            else: # Standard oder "mean"
-                # Resampling auf Mittelwert
+            else: 
                 df_resampled = df_raw[db_col].resample(resample_rule).mean()
 
             # Lineare Interpolation für Datenlücken nach dem Resampling
@@ -169,9 +179,8 @@ def fetch_and_plot_report(report_config):
             
         # 4. Plot erstellen (Matplotlib)
         
-        ensure_dir_exists(log_path) # Stellt sicher, dass der Zielordner existiert
+        ensure_dir_exists(log_path) 
         
-        # Größere Figur, um Platz für die Statistik rechts zu schaffen
         fig, ax = plt.subplots(figsize=(14, 8)) 
         
         # Plotten der einzelnen Sensor-Linien
@@ -179,13 +188,13 @@ def fetch_and_plot_report(report_config):
             db_col = config.COLUMN_NAMES.get(sensor_spec['key'])
             unit = sensor_spec['unit']
             
-            # Nur plotten, wenn die Spalte im df_plot existiert
             if db_col in df_plot.columns:
                 ax.plot(df_plot.index, df_plot[db_col], label=f'{db_col} ({unit})', linewidth=2)
         
         # Titel und Achsenbeschriftungen
-        ax.set_title(f"{report_config['name']}\nBerichtszeitraum: {report_start_dt.strftime('%d.%m.%Y %H:%M')} - {report_end_dt.strftime('%d.%m.%Y %H:%M')} UTC", fontsize=14)
-        ax.set_xlabel("Zeit (UTC)", fontsize=12)
+        # Ausgabe der Zeit nun als LOKALE Zeit
+        ax.set_title(f"{report_config['name']}\nBerichtszeitraum (Lokal): {report_start_dt.strftime('%d.%m.%Y %H:%M')} - {report_end_dt.strftime('%d.%m.%Y %H:%M')}", fontsize=14)
+        ax.set_xlabel(f"Zeit (Lokal {local_tz.zone})", fontsize=12)
         ax.set_ylabel(f"Messwert (Einheit: {report_config['sensors'][0]['unit']})", fontsize=12)
 
         # X-Achsen-Formatierung
@@ -199,10 +208,8 @@ def fetch_and_plot_report(report_config):
         ax.legend(loc='best')
         
         # 5. Statistik-Tabelle in den Plot einfügen (figtext)
-        
         stats_text = "Statistiken für den Berichtszeitraum:\n"
         for data in all_data:
-            # Sicherheitsprüfung, falls min/max/mean None sind (was bei leeren Daten passieren kann)
             min_val = f"{data['min']:.2f}" if pd.notna(data['min']) else "N/A"
             max_val = f"{data['max']:.2f}" if pd.notna(data['max']) else "N/A"
             mean_val = f"{data['mean']:.2f}" if pd.notna(data['mean']) else "N/A"
@@ -212,7 +219,6 @@ def fetch_and_plot_report(report_config):
             stats_text += f"   - Max: {max_val}{data['unit']} \n"
             stats_text += f"   - Mittelwert: {mean_val}{data['unit']} \n\n"
 
-        # Füge den Text rechts in die Abbildung ein (Position x=0.95, y=0.5)
         plt.figtext(0.95, 0.5, stats_text, 
                     wrap=True, 
                     horizontalalignment='left', 
@@ -220,7 +226,6 @@ def fetch_and_plot_report(report_config):
                     fontsize=10, 
                     bbox={'facecolor':'#F0F0F0', 'alpha':0.8, 'pad':5, 'edgecolor':'gray'})
         
-        # Layout anpassen (passt den Graphen an, um Platz für den Text zu schaffen)
         plt.tight_layout(rect=[0, 0, 0.88, 1]) 
         
         plt.savefig(full_file_path, format='pdf')
