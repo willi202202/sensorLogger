@@ -6,8 +6,8 @@ TOPIC = "mobilealerts/#"
 DB_FILE = "log/mobilealerts.db"
 
 # --- MAIL & TIMEOUT KONFIGURATION ---
-MAIL_RECIPIENT = "ihre@emailadresse.de" 
-MAIL_SENDER = "pi@mein-raspi.local"   
+MAIL_RECIPIENT = "roman.willi@gmx.ch" 
+MAIL_SENDER = "roman.willi@gmx.ch"   
 TIMEOUT_SECONDS = 3600  # 1 Stunde
 
 # ⭐ SPALTENNAMEN-KONFIGURATION ⭐
