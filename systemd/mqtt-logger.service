@@ -9,11 +9,11 @@ After=network.target mosquitto.service
 User=raspiroman
 
 # Das Arbeitsverzeichnis, in dem die Skripte und die mobilealerts.db liegen.
-WorkingDirectory=/home/raspiroman/ProjGitLab/sensorlogger
+WorkingDirectory=/home/raspiroman/project/sensorlogger
 
 # Befehl zum Starten des Loggers.
 # Stellt sicher, dass Sie den korrekten Pfad zu Python3 verwenden.
-ExecStart=/usr/bin/python3 mqtt_sqlite_logger.py
+ExecStart=/usr/bin/python3 /home/raspiroman/project/sensorlogger/mqtt_logger.py
 
 # Typ des Prozesses. 'simple' ist Standard.
 Type=simple
