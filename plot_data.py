@@ -1,5 +1,5 @@
 # plot_data.py
-# python3 plot_data.py temp_innen temp_aussen1 --start "2025-12-03 18:00:00"
+# python3 plot_data.py temp_in temp1 --start "2025-12-03 18:00:00"
 import sqlite3
 import datetime
 import pandas as pd

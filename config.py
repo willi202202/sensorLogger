@@ -10,7 +10,10 @@ MAIL_RECIPIENT = "roman.willi@gmx.ch"
 MAIL_SENDER = "roman.willi@gmx.ch"   
 TIMEOUT_SECONDS = 3600  # 1 Stunde
 
-# ⭐ SPALTENNAMEN-KONFIGURATION ⭐
+# --- JSON Konfigurationsdatei für Berichte ---
+# Die Datei, die die Spezifikationen für alle Berichte enthält
+REPORTS_CONFIG_FILE = "reports.json"
+
 # Logischer Name (Key) : Datenbank-Spaltenname (Value)
 COLUMN_NAMES = {
     "id": "id",

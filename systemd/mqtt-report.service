@@ -4,10 +4,10 @@ Requires=mqtt-report.timer
 
 [Service]
 User=raspiroman
-WorkingDirectory=/home/raspiroman/ProjGitLab/sensorlogger
+WorkingDirectory=/home/raspiroman/project/sensorLogger
 
 # Befehl zum Ausführen des Berichtsgenerators.
-ExecStart=/usr/bin/python3 /home/raspiroman/ProjGitLab/sensorLogger/report_generator.py
+ExecStart=/usr/bin/python3 /home/raspiroman/project/sensorLogger/report_generator.py
 
 # Standardausgabe (console.log) an das Systemd Journal senden.
 StandardOutput=journal

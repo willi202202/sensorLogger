@@ -1,310 +1,267 @@
 import sqlite3
 import pandas as pd
 import matplotlib.pyplot as plt
-import io
-import smtplib
-import argparse
-from email.mime.multipart import MIMEMultipart
-from email.mime.base import MIMEBase
-from email.mime.text import MIMEText
-from email import encoders
-from reportlab.lib.pagesizes import A4
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image as RLImage, Table, TableStyle
-from reportlab.lib.styles import getSampleStyleSheet
-from reportlab.lib import colors
-from reportlab.lib.units import inch
-from datetime import datetime, timedelta, timezone # <-- HINZUGEFÜGT: timezone
+import matplotlib.dates as mdates
+import json
+import os
+import sys
+import glob
+from datetime import datetime, timedelta
+import warnings
 
-# --- KONFIGURATION START ---
-DB_FILE = "log/mobilealerts.db"
-REPORT_FILENAME = "log/MobileAlerts_Wochenbericht.pdf"
-DAYS_AGO = 7 # Berichtszeitraum: Letzten 7 Tage
+# Unterdrückt Matplotlib-Warnungen, die manchmal im figtext-Bereich auftreten
+warnings.filterwarnings("ignore", category=UserWarning)
 
-# E-MAIL KONFIGURATION (MUSS ANGEPASST WERDEN)
-SMTP_SERVER = "mail.gmx.net"  # Beispiel: 'smtp.gmail.com'
-SMTP_PORT = 587                       # 587 (TLS) oder 465 (SSL)
-SMTP_USER = "roman.willi@gmx.ch"
-SMTP_PASSWORD = "P5EXDXX3QSFIPKRTQJ77"  # HINWEIS: Verwende bei Gmail/Outlook App-Passwörter!
-RECIPIENT_EMAIL = "roman.willi@gmx.ch"
-SENDER_EMAIL = SMTP_USER
-# --- KONFIGURATION ENDE ---
+# Importiere Konfiguration aus der config.py
+import config
 
+# --- Konstanten und Utility-Funktionen ---
 
-def test_email_connection():
-    """Testet die Verbindung zum SMTP-Server und sendet eine einfache Test-E-Mail."""
-    print("\n--- STARTE E-MAIL VERBINDUNGSTEST ---")
-    
-    msg = MIMEMultipart()
-    msg['From'] = SENDER_EMAIL
-    msg['To'] = RECIPIENT_EMAIL
-    msg['Subject'] = "Mobile Alerts Test-E-Mail"
+def ensure_dir_exists(path):
+    """Stellt sicher, dass das Verzeichnis existiert."""
+    os.makedirs(path, exist_ok=True)
 
-    body = f"Dies ist eine automatische Test-E-Mail vom Mobile Alerts Bericht-Generator ({datetime.now().strftime('%d.%m.%Y %H:%M')}). Ihre SMTP-Konfiguration ist erfolgreich."
-    msg.attach(MIMEText(body, 'plain'))
-    
+def cleanup_old_reports(log_path, report_id, max_pdfs):
+    """
+    Löscht die ältesten PDF-Dateien in einem Verzeichnis, 
+    wenn die maximale Anzahl überschritten wird.
+    """
     try:
-        print(f"Versuche, eine Verbindung zu {SMTP_SERVER}:{SMTP_PORT} herzustellen...")
-        server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
-        # server.set_debuglevel(1) # Kann zur detaillierten Fehlerbehebung aktiviert werden
-        server.starttls()
-        print("Versuche, mich anzumelden...")
-        server.login(SMTP_USER, SMTP_PASSWORD)
-        
-        print(f"Sende Test-E-Mail an {RECIPIENT_EMAIL}...")
-        server.sendmail(SENDER_EMAIL, RECIPIENT_EMAIL, msg.as_string())
-        
-        server.quit()
-        print("✅ E-Mail-Test erfolgreich! Bitte überprüfen Sie Ihren Posteingang.")
-        return True
-        
-    except smtplib.SMTPAuthenticationError:
-        print("❌ SMTP-Authentifizierungsfehler! Überprüfen Sie Benutzername/Passwort oder App-Passwörter.")
-    except smtplib.SMTPServerDisconnected:
-        print("❌ SMTP-Server-Fehler: Server hat die Verbindung unerwartet getrennt.")
+        # Suchmuster für die Berichte basierend auf der report_id
+        search_pattern = os.path.join(log_path, f"{report_id}_*.pdf")
+        list_of_files = glob.glob(search_pattern)
+
+        if len(list_of_files) > max_pdfs:
+            # Sortiert nach Änderungszeitpunkt (getmtime) - ältester zuerst
+            list_of_files.sort(key=os.path.getmtime)
+            
+            # Berechnet die Anzahl der zu löschenden Dateien
+            num_to_delete = len(list_of_files) - max_pdfs
+            
+            print(f"   🧹 Max. Limit ({max_pdfs}) überschritten. Lösche {num_to_delete} älteste Dateien.")
+            
+            for i in range(num_to_delete):
+                file_to_delete = list_of_files[i]
+                os.remove(file_to_delete)
+                print(f"     -> Gelöscht: {os.path.basename(file_to_delete)}")
+                
     except Exception as e:
-        print(f"❌ Allgemeiner Fehler beim E-Mail-Test (Prüfen Sie Server/Port/TLS): {e}")
+        print(f"   ❌ Fehler bei der Archiv-Wartung in {log_path}: {e}")
+
+# --- Hauptlogik: Datenabfrage und Plot-Generierung ---
+
+def fetch_and_plot_report(report_config):
+    """
+    Führt die Datenabfrage, Berechnung, Glättung und PDF-Generierung für
+    einen einzelnen Bericht aus.
+    """
+    report_id = report_config["report_id"]
+    log_path = report_config["log_path"]
+    duration_days = report_config["duration_days"]
+    values_period_m = report_config["values_period_m"]
+    interpolation_method = report_config["interpolate"]
     
-    return False
-    print("--- E-MAIL VERBINDUNGSTEST BEENDET ---")
+    print(f"\n--- Starte Bericht: {report_config['name']} ({report_id}) ---")
 
-
-def fetch_data_and_analyze(db_file, days_ago):
-    """Holt die Daten der letzten X Tage aus der SQLite-DB und aggregiert sie."""
-    print("Starte Datenabfrage und Analyse...")
+    # 1. Zeitfenster definieren (Bericht endet heute um Mitternacht UTC)
     
-    # Berechne den Startzeitpunkt (X Tage in der Vergangenheit)
-    cutoff_date = datetime.now() - timedelta(days=days_ago)
-    cutoff_date_iso = cutoff_date.isoformat()
+    # Enddatum ist heute 00:00:00 UTC (der Zeitpunkt des Skriptstarts)
+    report_end_dt = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    # Startdatum ist Enddatum minus Dauer
+    report_start_dt = report_end_dt - timedelta(days=duration_days)
     
-    try:
-        conn = sqlite3.connect(db_file)
-        
-        # Abfrage: Wähle alle Messungen seit dem Stichtag.
-        query = f"""
-            SELECT * FROM measurements 
-            WHERE timestamp_iso >= '{cutoff_date_iso}' 
-            ORDER BY timestamp_iso
-        """
-        df = pd.read_sql_query(query, conn)
-        conn.close()
+    start_time_str = report_start_dt.strftime('%Y-%m-%d %H:%M:%S')
+    end_time_str = report_end_dt.strftime('%Y-%m-%d %H:%M:%S')
 
-    except Exception as e:
-        print(f"❌ Fehler beim Lesen der Datenbank: {e}")
-        return None, None
+    # Filename basiert auf dem ENDDATUM des Berichts
+    report_date_str = (report_end_dt - timedelta(seconds=1)).strftime('%Y-%m-%d')
+    file_name = f"{report_id}_{report_date_str}.pdf"
+    full_file_path = os.path.join(log_path, file_name)
 
-    if df.empty:
-        print("ℹ️ Keine Daten für den Berichtszeitraum gefunden.")
-        return df, None
-
-    # Datenvorbereitung
-    df['timestamp_iso'] = pd.to_datetime(df['timestamp_iso'])
-    # Setze den Zeitstempel als Index für die Zeitreihenanalyse
-    df.set_index('timestamp_iso', inplace=True)
-
-    # Aggregation: Berechne den Tagesmittelwert und Min/Max für die Gartentemperatur (Temp1)
-    # Beachte: Dies aggregiert alle Sensoren zusammen! Idealerweise aggregiert man nach Sensor_Name.
-    # Wir nehmen hier nur Temp1 als Beispiel.
-    daily_summary = df.groupby(df.index.date)['temp1'].agg(['mean', 'min', 'max']).round(1)
-    daily_summary.index = pd.to_datetime(daily_summary.index).strftime('%d.%m.')
-    
-    return df, daily_summary
-
-def create_plot(df):
-    """Erstellt ein Liniendiagramm der Temperatur über die Zeit."""
-    print("Erstelle Diagramm...")
-    
-    # Nutze nur die letzten 7 Tage
-    # FIX: Nutze timezone.utc, um den Vergleich UTC-aware zu machen.
-    seven_days_ago = datetime.now(timezone.utc) - timedelta(days=7)
-    df_plot = df[df.index >= seven_days_ago].copy()
-
-    # Erstelle das Diagramm (z.B. Temperaturverlauf von Temp1)
-    fig, ax = plt.subplots(figsize=(8, 4))
-    
-    # Filtere NaN-Werte für eine saubere Darstellung
-    temp_data = df_plot['temp1'].dropna()
-    
-    ax.plot(temp_data.index, temp_data.values, label='Temperatur (Temp1) [°C]', color='tab:red', linewidth=1)
-    
-    ax.set_title(f"Temperaturverlauf der letzten {DAYS_AGO} Tage", fontsize=12)
-    ax.set_xlabel("Datum und Uhrzeit")
-    ax.set_ylabel("Temperatur [°C]")
-    ax.legend()
-    ax.grid(True, linestyle='--', alpha=0.6)
-    
-    # Formatiere die x-Achse, um die Lesbarkeit zu verbessern
-    plt.xticks(rotation=45, ha='right')
-    plt.tight_layout()
-    
-    # Speichere das Diagramm in einem BytesIO-Objekt (im Speicher)
-    img_data = io.BytesIO()
-    plt.savefig(img_data, format='png')
-    plt.close(fig) # Schließe die Matplotlib-Figur
-    
-    print("✅ Diagramm erstellt.")
-    img_data.seek(0)
-    return img_data
-
-def create_pdf(daily_summary, plot_img_data):
-    """Erstellt das PDF-Dokument mit ReportLab."""
-    print("Generiere PDF-Bericht...")
-    
-    doc = SimpleDocTemplate(REPORT_FILENAME, pagesize=A4,
-                            rightMargin=72, leftMargin=72,
-                            topMargin=72, bottomMargin=72)
-    styles = getSampleStyleSheet()
-    story = []
-
-    # --- 1. TITEL ---
-    titel = f"Mobile Alerts – Wochenbericht ({DAYS_AGO} Tage)"
-    story.append(Paragraph(titel, styles['Title']))
-    story.append(Spacer(1, 0.5 * inch))
-
-    # --- 2. ZUSAMMENFASSUNG ---
-    summary_text = f"Dieser Bericht enthält eine Zusammenfassung der Messdaten vom {daily_summary.index.min()} bis zum {daily_summary.index.max()}."
-    story.append(Paragraph(summary_text, styles['Normal']))
-    story.append(Spacer(1, 0.25 * inch))
-
-    # --- 3. DIAGRAMM (Visualisierung) ---
-    story.append(Paragraph("Verlauf der Temperatur (Temp1)", styles['Heading2']))
-    
-    # Füge das Bild aus dem BytesIO-Stream ein
-    if plot_img_data:
-        img = RLImage(plot_img_data)
-        img.drawHeight = 3.5 * inch
-        img.drawWidth = 6 * inch
-        story.append(img)
-        story.append(Spacer(1, 0.25 * inch))
-    else:
-        story.append(Paragraph("ℹ️ Diagramm konnte nicht erstellt werden.", styles['Normal']))
-        story.append(Spacer(1, 0.25 * inch))
-
-
-    # --- 4. DATENTABELLE ---
-    story.append(Paragraph("Tägliche Übersicht (Temp1)", styles['Heading2']))
-    
-    # Bereite die Daten für die ReportLab Tabelle vor
-    table_data = [['Datum', 'Minimum (°C)', 'Maximum (°C)', 'Mittelwert (°C)']]
-    for date, row in daily_summary.iterrows():
-        table_data.append([
-            str(date),
-            str(row['min']),
-            str(row['max']),
-            str(row['mean'])
-        ])
-
-    # Erstelle die Tabelle und wende Styles an
-    table = Table(table_data, colWidths=[1.5*inch]*4)
-    table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-        ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
-        ('GRID', (0, 0), (-1, -1), 1, colors.black)
-    ]))
-    
-    story.append(table)
-    story.append(Spacer(1, 0.5 * inch))
-
-    # --- 5. FUSSZEILE ---
-    story.append(Paragraph(f"Bericht generiert am: {datetime.now().strftime('%d.%m.%Y %H:%M')}", styles['Italic']))
-
-    # PDF generieren
-    doc.build(story)
-    print(f"✅ PDF '{REPORT_FILENAME}' erfolgreich generiert.")
-
-def send_email(file_path):
-    """Sendet die erstellte PDF-Datei als Anhang per E-Mail."""
-    print("Starte E-Mail-Versand...")
-    
-    msg = MIMEMultipart()
-    msg['From'] = SENDER_EMAIL
-    msg['To'] = RECIPIENT_EMAIL
-    msg['Subject'] = f"Mobile Alerts: Wochenbericht ({DAYS_AGO} Tage)"
-
-    body = "Im Anhang finden Sie den automatisierten Wochenbericht mit den Messdaten der Mobile Alerts Sensoren."
-    msg.attach(MIMEText(body, 'plain'))
-
-    # Füge die PDF-Datei als Anhang hinzu
-    try:
-        with open(file_path, "rb") as attachment:
-            part = MIMEBase('application', 'octet-stream')
-            part.set_payload(attachment.read())
-        
-        encoders.encode_base64(part)
-        part.add_header('Content-Disposition', 
-                        f"attachment; filename= {REPORT_FILENAME}")
-        msg.attach(part)
-    except FileNotFoundError:
-        print(f"❌ Dateifehler: {file_path} nicht gefunden.")
+    # 2. Existenzprüfung
+    # Verhindert Duplikate für einen spezifischen Endzeitpunkt. Bei rollierenden
+    # Berichten wird die Datei täglich mit neuem Enddatum überschrieben/ersetzt.
+    if os.path.exists(full_file_path):
+        print(f"   ⚠️ Bericht für {report_date_str} existiert bereits. Überspringe Generierung.")
+        # Führt trotzdem die Archiv-Wartung durch, falls max_pdfs überschritten wurde
+        cleanup_old_reports(log_path, report_id, report_config["max_pdfs"])
         return
 
-    # Verbindung zum SMTP-Server herstellen und E-Mail senden
+    print(f"   -> Datenzeitraum: {start_time_str} bis {end_time_str} (UTC)")
+    
+    # 3. Datenbankabfrage und Glättung
+    
+    conn = None
+    all_data = [] # Zum Speichern der Statistikdaten
+    
     try:
-        server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
-        server.starttls()  # Startet TLS-Verschlüsselung (wichtig!)
-        server.login(SMTP_USER, SMTP_PASSWORD)
-        server.sendmail(SENDER_EMAIL, RECIPIENT_EMAIL, msg.as_string())
-        server.quit()
-        print("✅ E-Mail erfolgreich versendet!")
-    except smtplib.SMTPAuthenticationError:
-        print("❌ SMTP-Authentifizierungsfehler! Überprüfe Benutzername/Passwort oder App-Passwörter.")
-    except Exception as e:
-        print(f"❌ Fehler beim E-Mail-Versand: {e}")
+        conn = sqlite3.connect(config.DB_FILE)
+        
+        # Liste der DB-Spaltennamen für die Abfrage
+        db_cols_to_query = [config.COLUMN_NAMES.get(s['key']) for s in report_config['sensors']]
+        # Entferne None-Werte, falls ein Key in reports.json, aber nicht in config.py existiert
+        db_cols_to_query = [col for col in db_cols_to_query if col]
+        
+        if not db_cols_to_query:
+            print("   ❌ Fehler: Keine gültigen Sensoren oder fehlende Spaltennamen in config.py gefunden.")
+            return
 
+        time_col = config.COLUMN_NAMES['timestamp_iso']
+        select_cols_str = time_col + ", " + ", ".join(db_cols_to_query)
+        
+        # SQL-Abfrage mit Zeitfilter
+        sql_query = f"""
+            SELECT {select_cols_str}
+            FROM measurements 
+            WHERE {time_col} >= '{start_time_str}' AND {time_col} < '{end_time_str}'
+            ORDER BY {time_col} ASC;
+        """
+        
+        df_raw = pd.read_sql(sql_query, conn)
+        
+        if df_raw.empty:
+            print("   ℹ️ Keine Daten für diesen Zeitraum gefunden.")
+            return
+
+        # Zeitstempel konvertieren und als Index setzen
+        df_raw[time_col] = pd.to_datetime(df_raw[time_col], utc=True)
+        df_raw.set_index(time_col, inplace=True)
+        
+        # DataFrame für den Plot (nach Resampling)
+        df_plot = pd.DataFrame(index=df_raw.index)
+
+        # Resampling und Statistik-Erstellung für jeden Sensor
+        for sensor_spec in report_config['sensors']:
+            key = sensor_spec['key']
+            db_col = config.COLUMN_NAMES.get(key)
+            unit = sensor_spec['unit']
+
+            if db_col not in df_raw.columns:
+                print(f"   ⚠️ Spalte '{db_col}' nicht in der Datenbank gefunden. Sensor übersprungen.")
+                continue
+
+            # Glättungsperiode definieren (Pandas Resampling Rule)
+            resample_rule = f'{values_period_m}T'
+            
+            # Resampling-Operation
+            if interpolation_method == "min":
+                # Resampling auf Minimum
+                df_resampled = df_raw[db_col].resample(resample_rule).min()
+            else: # Standard oder "mean"
+                # Resampling auf Mittelwert
+                df_resampled = df_raw[db_col].resample(resample_rule).mean()
+
+            # Lineare Interpolation für Datenlücken nach dem Resampling
+            df_resampled = df_resampled.interpolate(method='linear')
+            
+            # Statistik (basiert auf den resampelten/geglätteten Daten)
+            stats = {
+                'sensor': db_col,
+                'unit': unit,
+                'min': df_resampled.min(),
+                'max': df_resampled.max(),
+                'mean': df_resampled.mean()
+            }
+            all_data.append(stats)
+            
+            # Füge die resampelten Daten dem Plot-DataFrame hinzu
+            df_plot[db_col] = df_resampled
+            
+        # 4. Plot erstellen (Matplotlib)
+        
+        ensure_dir_exists(log_path) # Stellt sicher, dass der Zielordner existiert
+        
+        # Größere Figur, um Platz für die Statistik rechts zu schaffen
+        fig, ax = plt.subplots(figsize=(14, 8)) 
+        
+        # Plotten der einzelnen Sensor-Linien
+        for sensor_spec in report_config['sensors']:
+            db_col = config.COLUMN_NAMES.get(sensor_spec['key'])
+            unit = sensor_spec['unit']
+            
+            # Nur plotten, wenn die Spalte im df_plot existiert
+            if db_col in df_plot.columns:
+                ax.plot(df_plot.index, df_plot[db_col], label=f'{db_col} ({unit})', linewidth=2)
+        
+        # Titel und Achsenbeschriftungen
+        ax.set_title(f"{report_config['name']}\nBerichtszeitraum: {report_start_dt.strftime('%d.%m.%Y %H:%M')} - {report_end_dt.strftime('%d.%m.%Y %H:%M')} UTC", fontsize=14)
+        ax.set_xlabel("Zeit (UTC)", fontsize=12)
+        ax.set_ylabel(f"Messwert (Einheit: {report_config['sensors'][0]['unit']})", fontsize=12)
+
+        # X-Achsen-Formatierung
+        date_format = '%d.%m %H:%M'
+        if duration_days > 7:
+             date_format = '%d.%m.%Y'
+        
+        ax.xaxis.set_major_formatter(mdates.DateFormatter(date_format))
+        fig.autofmt_xdate(rotation=30)
+        ax.grid(True, linestyle='--', alpha=0.7)
+        ax.legend(loc='best')
+        
+        # 5. Statistik-Tabelle in den Plot einfügen (figtext)
+        
+        stats_text = "Statistiken für den Berichtszeitraum:\n"
+        for data in all_data:
+            # Sicherheitsprüfung, falls min/max/mean None sind (was bei leeren Daten passieren kann)
+            min_val = f"{data['min']:.2f}" if pd.notna(data['min']) else "N/A"
+            max_val = f"{data['max']:.2f}" if pd.notna(data['max']) else "N/A"
+            mean_val = f"{data['mean']:.2f}" if pd.notna(data['mean']) else "N/A"
+
+            stats_text += f" {data['sensor']} ({data['unit']}):\n"
+            stats_text += f"   - Min: {min_val}{data['unit']} \n"
+            stats_text += f"   - Max: {max_val}{data['unit']} \n"
+            stats_text += f"   - Mittelwert: {mean_val}{data['unit']} \n\n"
+
+        # Füge den Text rechts in die Abbildung ein (Position x=0.95, y=0.5)
+        plt.figtext(0.95, 0.5, stats_text, 
+                    wrap=True, 
+                    horizontalalignment='left', 
+                    verticalalignment='center',
+                    fontsize=10, 
+                    bbox={'facecolor':'#F0F0F0', 'alpha':0.8, 'pad':5, 'edgecolor':'gray'})
+        
+        # Layout anpassen (passt den Graphen an, um Platz für den Text zu schaffen)
+        plt.tight_layout(rect=[0, 0, 0.88, 1]) 
+        
+        plt.savefig(full_file_path, format='pdf')
+        plt.close(fig)
+
+        print(f"   ✅ Bericht erfolgreich erstellt und gespeichert als: {full_file_path}")
+
+        # 6. Archiv-Wartung
+        cleanup_old_reports(log_path, report_id, report_config["max_pdfs"])
+
+
+    except sqlite3.Error as e:
+        print(f"   ❌ Datenbankfehler für Bericht {report_id}: {e}")
+    except Exception as e:
+        print(f"   ❌ Allgemeiner Fehler bei der Berichtserstellung für {report_id}: {e}")
+    finally:
+        if conn:
+            conn.close()
+
+# --- Hauptfunktion ---
 
 def main():
-    """Hauptfunktion zur Koordination des Berichts."""
+    """Liest die Konfiguration und startet die Berichtsgenerierung."""
     
-    parser = argparse.ArgumentParser(description="Mobile Alerts Wochenbericht Generator.")
-    parser.add_argument('--test-email', action='store_true', help="Führt nur einen Test der E-Mail-Konfiguration durch.")
-    args = parser.parse_args()
-
-    if args.test_email:
-        test_email_connection()
-        return
-
-    # 1. Daten holen und analysieren
-    df, daily_summary = fetch_data_and_analyze(DB_FILE, DAYS_AGO)
-    
-    if df.empty:
-        # Versuch, eine E-Mail ohne Anhang zu senden, falls keine Daten da sind
-        send_empty_report()
-        return
-
-    # 2. Plot erstellen
-    plot_img_data = create_plot(df)
-
-    # 3. PDF generieren
-    create_pdf(daily_summary, plot_img_data)
-
-    # 4. E-Mail senden
-    send_email(REPORT_FILENAME)
-
-def send_empty_report():
-    """Sendet eine Benachrichtigung, wenn keine Daten verfügbar sind."""
-    print("Starte Benachrichtigung über leeren Bericht...")
-    
-    msg = MIMEMultipart()
-    msg['From'] = SENDER_EMAIL
-    msg['To'] = RECIPIENT_EMAIL
-    msg['Subject'] = "Mobile Alerts: Wochenbericht - KEINE DATEN"
-
-    body = f"Achtung: Der automatisierte Wochenbericht konnte keine Messdaten für die letzten {DAYS_AGO} Tage finden. Bitte prüfen Sie den Logger-Dienst."
-    msg.attach(MIMEText(body, 'plain'))
-
     try:
-        server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
-        server.starttls()
-        server.login(SMTP_USER, SMTP_PASSWORD)
-        server.sendmail(SENDER_EMAIL, RECIPIENT_EMAIL, msg.as_string())
-        server.quit()
-        print("✅ E-Mail-Benachrichtigung gesendet.")
-    except Exception as e:
-        print(f"❌ Fehler beim Senden der Benachrichtigung: {e}")
+        with open(config.REPORTS_CONFIG_FILE, 'r') as f:
+            reports_config_list = json.load(f)
+            
+    except FileNotFoundError:
+        print(f"FATAL ERROR: Konfigurationsdatei {config.REPORTS_CONFIG_FILE} nicht gefunden.")
+        sys.exit(1)
+    except json.JSONDecodeError as e:
+        print(f"FATAL ERROR: Fehler beim Parsen der JSON-Datei {config.REPORTS_CONFIG_FILE}: {e}")
+        sys.exit(1)
 
+    print(f"\n[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Starte Berichtsgenerator für {len(reports_config_list)} Berichte.")
+
+    for report in reports_config_list:
+        fetch_and_plot_report(report)
+
+    print("\nAlle Berichte verarbeitet. Generator beendet.")
 
 if __name__ == "__main__":
     main()
