@@ -6,13 +6,13 @@ Dieses README beschreibt, wie du deine Reporting‑Webseite auf deinem Raspberry
 
 ## 1. Ordner vorbereiten
 ```bash
-sudo mkdir -p /var/www/raspi_report
-sudo chown $(whoami):$(whoami) /var/www/raspi_report
+sudo mkdir -p /var/www
+sudo chown $(whoami):$(whoami) /var/www
 ```
 
 Eine index.html erstellen:
 ```bash
-nano /var/www/raspi_report/index.html
+nano /var/www/index.html
 ```
 
 Einfacher Inhalt:
@@ -75,7 +75,7 @@ server {
     ssl_certificate     /etc/nginx/certs/raspi.crt;
     ssl_certificate_key /etc/nginx/certs/raspi.key;
 
-    root /var/www/raspi_report;
+    root /var/www;
 
     location / {
         auth_basic           "Restricted";
