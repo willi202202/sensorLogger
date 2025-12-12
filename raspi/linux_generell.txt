@@ -3,6 +3,9 @@ pcmanfm&
 editor mit sudo:
 sudo env DISPLAY=$DISPLAY XAUTHORITY=/home/raspiroman/.Xauthority mousepad /etc/fail2ban/jail.local
 
+pdf viewer:
+evince log/reports/daily_temp/temp_daily_2025-12-04.pdf
+
 in den hintergrund:
 Ctrl+Z
 

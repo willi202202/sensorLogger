@@ -1,0 +1,22 @@
+[
+  {
+    "name": "Innen-/Aussentemperatur",
+    "sensors": [
+      {"key": "temperatureIN"},
+      {"key": "temperature1"}
+    ],
+    "duration_days": 1,
+    "values_period_m": 10,
+    "interpolate": "min"
+  },
+  {
+    "name": "Innen-/Aussenfeuchte",
+    "sensors": [
+      {"key": "humidityIN"},
+      {"key": "humidity1"}
+    ],
+    "duration_days": 1,
+    "values_period_m": 10,
+    "interpolate": "min"
+  }
+]

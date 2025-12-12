@@ -1,0 +1,24 @@
+{
+  "pages": [
+    {
+      "title": "Raspi-Report",
+      "file": "dashboard.html"
+    },
+    {
+      "title": "Day Dashboard",
+      "file": "day.html"
+    },
+    {
+      "title": "Week Dashboard",
+      "file": "week.html"
+    },
+    {
+      "title": "Month Dashboard",
+      "file": "month.html"
+    },
+    {
+      "title": "Year Dashboard",
+      "file": "year.html"
+    }
+  ]
+}

@@ -1,0 +1,106 @@
+{
+  "DB_FILE": "log/mobilealerts.db",
+  "TABLE_NAME": "measurements",
+  "TIMESTAMP_FIELD": "utms",
+  "SENSORS": {
+    "temperature1": {
+      "name": "temperature1",
+      "alias": "Outdoor_Temperature",
+      "unit": "°C",
+      "round": 1,
+      "limits": [-10, 40],
+      "warn": [3, 28],
+      "alarm": [0, 35],
+      "plot": {
+        "color": "tab:red"
+      }
+    },
+    "humidity1": {
+      "name": "humidity1",
+      "alias": "Outdoor_Humidity",
+      "unit": "%RH",
+      "round": 0,
+      "limits": [0, 100],
+      "plot": {
+        "color": "tab:blue"
+      }
+    },
+    "temperature2": {
+      "name": "temperature2",
+      "alias": "temp2",
+      "unit": "°C",
+      "round": 1,
+      "limits": [-30, 50],
+      "warn": [-20, 40],
+      "alarm": [-25, 45],
+      "plot": {
+        "color": "tab:orange"
+      }
+    },
+    "humidity2": {
+      "name": "humidity2",
+      "alias": "hum2",
+      "unit": "%RH",
+      "round": 0,
+      "limits": [0, 100],
+      "plot": {
+        "color": "tab:cyan"
+      }
+    },
+    "temperature3": {
+      "name": "temperature3",
+      "alias": "temp3",
+      "unit": "°C",
+      "round": 1,
+      "limits": [-30, 50],
+      "warn": [-20, 40],
+      "alarm": [-25, 45],
+      "plot": {
+        "color": "tab:purple"
+      }
+    },
+    "humidity3": {
+      "name": "humidity3",
+      "alias": "hum3",
+      "unit": "%RH",
+      "round": 0,
+      "limits": [0, 100],
+      "plot": {
+        "color": "tab:olive"
+      }
+    },
+    "temperatureIN": {
+      "name": "temperatureIN",
+      "alias": "Indoor_Temperature",
+      "unit": "°C",
+      "round": 1,
+      "limits": [15, 35],
+      "warn": [20, 28],
+      "alarm": [17, 32],
+      "plot": {
+        "color": "tab:pink"
+      }
+    },
+    "humidityIN": {
+      "name": "humidityIN",
+      "alias": "Indoor_Humidity",
+      "unit": "%RH",
+      "round": 0,
+      "limits": [0, 100],
+      "plot": {
+        "color": "tab:gray"
+      }
+    },
+    "battery": {
+      "name": "battery",
+      "alias": "Battery_Status",
+      "unit": "",
+      "round": 0,
+      "limits": [0, 1],
+      "alarm": [0.9, 1.1],
+      "plot": {
+        "color": "tab:green"
+      }
+    }
+  }
+}
