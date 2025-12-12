@@ -2,7 +2,7 @@
   "pages": [
     {
       "title": "Raspi-Report",
-      "file": "dashboard.html"
+      "file": "raspi_report.html"
     },
     {
       "title": "Day Dashboard",
