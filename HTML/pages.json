@@ -2,23 +2,23 @@
   "pages": [
     {
       "title": "Raspi-Report",
-      "file": "raspi_report.html"
+      "file": "raspi_report/raspi_report.html"
     },
     {
       "title": "Day Dashboard",
-      "file": "day.html"
+      "file": "weather/day.html"
     },
     {
       "title": "Week Dashboard",
-      "file": "week.html"
+      "file": "weather/week.html"
     },
     {
-      "title": "Month Dashboard",
-      "file": "month.html"
+      "title": "Month WeatherDashboard",
+      "file": "weather/month.html"
     },
     {
-      "title": "Year Dashboard",
-      "file": "year.html"
+      "title": "Year Weather Dashboard",
+      "file": "weather/year.html"
     }
   ]
 }
