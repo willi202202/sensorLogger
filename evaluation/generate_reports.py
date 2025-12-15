@@ -24,7 +24,7 @@ from utils import generate_image_json  # <== NUR DAS! start_html_server hier NIC
 
 # Projektwurzel = Ordner oberhalb von evaluation/
 REPORT_ROOT = Path(__file__).resolve().parent.parent
-REPORT_DIR = "var" / "www" / "log" / "reports"
+REPORT_DIR = Path("/var/www/log/reports")
 HTML_DIR = REPORT_ROOT / "HTML"
 CONFIG_PATH = REPORT_ROOT / "evaluation" / "sensor_config.json"
 
