@@ -1,5 +1,6 @@
 # api_server.py
 import json
+import time
 import logging
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
@@ -10,11 +11,12 @@ def generate_reports():
     # HIER deine bestehende Funktion aufrufen
     log.info("Reports werden aktualisiert...")
     # generate_reports()
+    time.sleep(10)
     pass
 
 class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
-        if self.path == "/api/update":
+        if self.path in ("/update", "/api/update"):
             try:
                 generate_reports()
                 self._reply(200, {"ok": True})
