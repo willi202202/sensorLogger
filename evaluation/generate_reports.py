@@ -1,4 +1,5 @@
 import os
+from errors import ReportsClean, Database
 import shutil
 import socketserver
 import webbrowser
@@ -69,10 +70,7 @@ def generate_reports() -> None:
 
     # Throttling
     if _last_regen and datetime.now() - _last_regen < _MIN_REGEN_INTERVAL:
-        logger.debug("Reports noch frisch genug, keine Neugenerierung.")
-        return
-
-    logger.info("🔄 Generiere Reports neu ...")
+        raise ReportsClean("Reports noch frisch genug, keine Neugenerierung.")
 
     cfg = SystemConfig(str(CONFIG_PATH))
 
@@ -84,14 +82,13 @@ def generate_reports() -> None:
     first = repo.get_first_timestamp()
     last = repo.get_latest_timestamp()
     if first is None or last is None:
-        logger.error("Keine Einträge in der Datenbank.")
-        return
+        raise Database("Keine Einträge in der Datenbank.")
 
     first_dt = _parse_db_timestamp(first)
     last_dt = _parse_db_timestamp(last)
 
-    logger.info("🕘 First DB entry: %s", first_dt)
-    logger.info("🕘 Last  DB entry: %s", last_dt)
+    #print("🕘 First DB entry: %s", first_dt)
+    #print("🕘 Last  DB entry: %s", last_dt)
 
     # Zeitbereiche
     last_minus_24h = last_dt - timedelta(hours=24)
@@ -99,10 +96,10 @@ def generate_reports() -> None:
     last_minus_1Mt = last_dt - timedelta(days=30)
     last_minus_1y = last_dt - timedelta(days=365)
 
-    logger.debug("last_minus_24h: %s", last_minus_24h)
-    logger.debug("last_minus_1w : %s", last_minus_1w)
-    logger.debug("last_minus_1Mt: %s", last_minus_1Mt)
-    logger.debug("last_minus_1y : %s", last_minus_1y)
+    #print("last_minus_24h: %s", last_minus_24h)
+    #print("last_minus_1w : %s", last_minus_1w)
+    #print("last_minus_1Mt: %s", last_minus_1Mt)
+    #print("last_minus_1y : %s", last_minus_1y)
 
     # ------------------------------------------------------------------
     # HIER deine "wilde" Liste – nur mit Path statt r"..\..."
@@ -117,7 +114,7 @@ def generate_reports() -> None:
         _ensure_dir(d)
 
     # DAY Plots
-    logger.info("Erzeuge DAY-Reports ...")
+    #print("Erzeuge DAY-Reports ...")
     repo.multiplot_last_sensor_values(
         ["Outdoor_Temperature", "Indoor_Temperature",
          "Outdoor_Humidity", "Indoor_Humidity", "battery"],
@@ -153,7 +150,7 @@ def generate_reports() -> None:
     generate_image_json(day_dir, output_json="images.json", status_image="status.png")
 
     # WEEK Plots
-    logger.info("Erzeuge WEEK-Reports ...")
+    #print("Erzeuge WEEK-Reports ...")
     shutil.copy2(day_dir / "status.png", week_dir / "status.png")
 
     repo.multiplot_sensor_values_describe(
@@ -184,7 +181,7 @@ def generate_reports() -> None:
     generate_image_json(week_dir, output_json="images.json", status_image="status.png")
 
     # MONTH Plots
-    logger.info("Erzeuge MONTH-Reports ...")
+    #print("Erzeuge MONTH-Reports ...")
     shutil.copy2(day_dir / "status.png", month_dir / "status.png")
 
     repo.multiplot_sensor_values_describe(
@@ -215,7 +212,7 @@ def generate_reports() -> None:
     generate_image_json(month_dir, output_json="images.json", status_image="status.png")
 
     # YEAR Plots
-    logger.info("Erzeuge YEAR-Reports ...")
+    #print("Erzeuge YEAR-Reports ...")
     shutil.copy2(day_dir / "status.png", year_dir / "status.png")
 
     repo.multiplot_sensor_values_describe(
@@ -247,7 +244,7 @@ def generate_reports() -> None:
 
     # ------------------------------------------------------------------
     _last_regen = datetime.now()
-    logger.info("✅ Reports aktualisiert.")
+    #print("✅ Reports aktualisiert.")
 
 
 if __name__ == "__main__":
