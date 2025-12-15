@@ -3,16 +3,17 @@ import json
 import time
 import logging
 from http.server import BaseHTTPRequestHandler, HTTPServer
+from generate_reports import generate_reports 
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger("api")
 
-def generate_reports():
-    # HIER deine bestehende Funktion aufrufen
-    log.info("Reports werden aktualisiert...")
-    # generate_reports()
-    time.sleep(10)
-    pass
+#def generate_reports():
+#    # HIER deine bestehende Funktion aufrufen
+#    log.info("Reports werden aktualisiert...")
+#    # generate_reports()
+#    time.sleep(10)
+#    pass
 
 class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
