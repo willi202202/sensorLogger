@@ -90,21 +90,24 @@
         <img id="main-image" src="" alt="Plot Bild">
         <div id="caption"></div>
     </div>
-
     <script>
         const basePath = "../log/reports/day/";
+        const cacheBust = Date.now();   // 🔥 Cache Busting
         let images = [];
         let currentIndex = 0;
 
-        // JSON laden
-        fetch(basePath + "images.json")
+        // JSON laden (mit Cache Busting)
+        fetch(basePath + "images.json?v=" + cacheBust, { cache: "no-store" })
             .then(response => response.json())
             .then(data => {
-                // Status-Bild mit Pfad
-                document.getElementById("status-image").src = basePath + data.status_image;
+                // Status-Bild mit Cache Busting
+                document.getElementById("status-image").src =
+                    basePath + data.status_image + "?v=" + cacheBust;
 
-                // Plots mit Pfad
-                images = data.plots.map(name => basePath + name);
+                // Plots mit Cache Busting
+                images = data.plots.map(name =>
+                    basePath + name + "?v=" + cacheBust
+                );
 
                 if (images.length === 0) {
                     document.getElementById("caption").textContent = "Keine Plots gefunden.";
@@ -113,6 +116,11 @@
                 }
 
                 showImage(0);
+            })
+            .catch(err => {
+                document.getElementById("caption").textContent =
+                    "Fehler beim Laden der Plots.";
+                console.error(err);
             });
 
         function showImage(index) {
@@ -123,7 +131,7 @@
             const img = images[currentIndex];
             document.getElementById("main-image").src = img;
 
-            document.getElementById("caption").textContent = img;
+            document.getElementById("caption").textContent = img.replace(basePath, "");
             document.getElementById("index-info").textContent =
                 `Bild ${currentIndex + 1} von ${images.length}`;
 
