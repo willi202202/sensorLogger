@@ -19,25 +19,12 @@ from utils import generate_image_json  # <== NUR DAS! start_html_server hier NIC
 
 
 # ---------------------------------------------------------------------------
-# Logging-Konfiguration
-# ---------------------------------------------------------------------------
-
-LOG_LEVEL = logging.INFO  # für mehr Details: logging.DEBUG
-
-logging.basicConfig(
-    level=LOG_LEVEL,
-    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-)
-logger = logging.getLogger("sensor_dashboard")
-
-
-# ---------------------------------------------------------------------------
 # Konfiguration
 # ---------------------------------------------------------------------------
 
 # Projektwurzel = Ordner oberhalb von evaluation/
 REPORT_ROOT = Path(__file__).resolve().parent.parent
-REPORT_DIR = REPORT_ROOT / "log" / "reports"
+REPORT_DIR = "var" / "www" / "log" / "reports"
 HTML_DIR = REPORT_ROOT / "HTML"
 CONFIG_PATH = REPORT_ROOT / "evaluation" / "sensor_config.json"
 
