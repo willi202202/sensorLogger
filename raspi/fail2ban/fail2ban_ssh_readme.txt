@@ -13,7 +13,7 @@ sudo fail2ban-client unban --all
 sudo systemctl stop fail2ban
 sudo systemctl restart fail2ban
 sudo journalctl -u fail2ban.service
-sudo journalctl -u fail2ban.service --since "1 minute ago"
+sudo journalctl -u fail2ban.service --since "1 day ago"
 
 pcmanfm&
 
@@ -21,7 +21,6 @@ abfragen:
 sudo fail2ban-client get sshd bantime
 sudo fail2ban-client get sshd maxretry
 sudo fail2ban-client get sshd findtime
-sudo fail2ban-client get sshd action
 who
 cat .bash_history
 sudo journalctl -u ssh.service

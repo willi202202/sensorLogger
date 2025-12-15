@@ -43,42 +43,88 @@
             background: #dcdcdc;
         }
 
+        .action-button {
+            background: #cfe8ff;
+            border: 1px solid #6aa0d8;
+            font-weight: bold;
+        }
+
+        .action-button:hover {
+            background: #b9dcff;
+        }
+
         #loading {
-            margin-top: 30px;
+            margin-top: 20px;
             font-size: 1rem;
             color: #777;
+        }
+
+        #status {
+            margin-top: 15px;
+            font-size: 0.95rem;
         }
     </style>
 </head>
 <body>
-    <div id="container">
-        <h1>Übersicht</h1>
-        <p>Wähle ein Dashboard:</p>
+<div id="container">
+    <h1>Übersicht</h1>
+    <p>Wähle ein Dashboard:</p>
 
-        <div id="pagelist"></div>
-        <div id="loading">Lade verfügbare Seiten...</div>
-    </div>
+    <!-- 🔄 Update Button -->
+    <button class="page-button action-button" onclick="updateReports()">
+        🔄 Reports aktualisieren
+    </button>
 
-    <script>
-        fetch("pages.json")
-            .then(response => response.json())
-            .then(data => {
-                const container = document.getElementById("pagelist");
-                document.getElementById("loading").style.display = "none";
+    <div id="status"></div>
 
-                data.pages.forEach(page => {
-                    const link = document.createElement("a");
-                    link.href = page.file;
-                    link.textContent = page.title;
-                    link.className = "page-button";
-                    container.appendChild(link);
-                });
-            })
-            .catch(err => {
-                document.getElementById("loading").textContent =
-                    "Fehler beim Laden von pages.json – bitte prüfen.";
-                console.error(err);
+    <div id="pagelist"></div>
+    <div id="loading">Lade verfügbare Seiten...</div>
+</div>
+
+<script>
+    // Seiten laden
+    fetch("pages.json")
+        .then(response => response.json())
+        .then(data => {
+            const container = document.getElementById("pagelist");
+            document.getElementById("loading").style.display = "none";
+
+            data.pages.forEach(page => {
+                const link = document.createElement("a");
+                link.href = page.file;
+                link.textContent = page.title;
+                link.className = "page-button";
+                container.appendChild(link);
             });
-    </script>
+        })
+        .catch(err => {
+            document.getElementById("loading").textContent =
+                "Fehler beim Laden von pages.json - bitte prüfen.";
+            console.error(err);
+        });
+
+    // 🔄 Update auslösen
+    async function updateReports() {
+        const status = document.getElementById("status");
+        status.textContent = "⏳ Update läuft ...";
+
+        try {
+            const response = await fetch("/api/update", {
+                method: "POST"
+            });
+
+            const result = await response.json();
+
+            if (result.ok) {
+                status.textContent = "✅ Reports erfolgreich aktualisiert";
+            } else {
+                status.textContent = "❌ Fehler: " + result.error;
+            }
+        } catch (e) {
+            status.textContent = "❌ Verbindung zum Server fehlgeschlagen";
+            console.error(e);
+        }
+    }
+</script>
 </body>
 </html>

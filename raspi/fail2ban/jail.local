@@ -100,7 +100,7 @@ ignoreip = 127.0.0.1/8 ::1 192.168.1.0/24
 # "bantime" is the amount of time that a host is banned, integer in seconds or
 # time abbreviation format (m - minutes, h - hours, d - days, w - weeks, mo - months, y - years).
 # This is to consider as an initial time if bantime.increment gets enabled.
-bantime  = 1h
+bantime  = 24h
 # bantime  = 30s
 
 # A host is banned if it has generated "maxretry" during the last "findtime"
@@ -206,8 +206,8 @@ fail2ban_agent = Fail2Ban/%(fail2ban_version)s
 # iptables-multiport, shorewall, etc) It is used to define
 # action_* variables. Can be overridden globally or per
 # section within jail.local file
-banaction = iptables-multiport
-banaction_allports = iptables-allports
+banaction = ufw
+#banaction_allports = nftables-allports
 
 # The simplest action to take: ban only
 action_ = %(banaction)s[port="%(port)s", protocol="%(protocol)s", chain="%(chain)s"]
@@ -377,8 +377,8 @@ logpath = /opt/openhab/logs/request.log
 # normal (default), aggressive (combines all), auth or fallback
 # See "tests/files/logs/nginx-http-auth" or "filter.d/nginx-http-auth.conf" for usage example and details.
 [nginx-http-auth]
-# mode = normal
-enabled = false
+enabled = true
+mode = aggressive
 port    = http,https
 logpath = %(nginx_error_log)s
 
