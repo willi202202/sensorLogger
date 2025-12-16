@@ -138,7 +138,7 @@ def generate_reports() -> None:
         "Garden_Temperature",
         last_minus_24h,
         last_dt,
-        filename=week_dir / "03_Garden_Temperature_last_minus_24h.png",
+        filename=day_dir / "03_Garden_Temperature_last_minus_24h.png",
         show=False,
     )
 
@@ -146,7 +146,7 @@ def generate_reports() -> None:
         "Basement_Temperature",
         last_minus_24h,
         last_dt,
-        filename=week_dir / "04_Basement_Temperature_last_minus_24h.png",
+        filename=day_dir / "04_Basement_Temperature_last_minus_24h.png",
         show=False,
     )
 
