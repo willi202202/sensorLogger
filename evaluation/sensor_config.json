@@ -1,6 +1,6 @@
 {
   "DB_FILE": "../log/mobilealerts.db",
-  "TABLE_NAME": "measurements",
+  "TABLE_NAME": "measurements_th",
   "TIMESTAMP_FIELD": "utms",
   "SENSORS": {
     "temperature1": {
