@@ -27,12 +27,22 @@ def safe_extract_value(data, key, list_policy="first"):
     Extrahiert Zahlen robust aus JSON:
     - int/float -> float
     - numeric string -> float
-    - list -> policy: first/last/avg (z.B. [1.9, 1.9])
+    - list -> policy: first/last/avg
+    - Sentinel-Werte wie -9999 -> None (=> SQL NULL)
     """
     if key not in data:
         return None
 
     value = data[key]
+
+    def is_invalid(v: float) -> bool:
+        # bekannte Invalid-Sentinels
+        if v == -9999.0 or v == -9999:
+            return True
+        # optional: extrem unplausible Werte
+        if v < -1000:
+            return True
+        return False
 
     if isinstance(value, list):
         if not value:
@@ -41,13 +51,18 @@ def safe_extract_value(data, key, list_policy="first"):
         nums = []
         for v in value:
             if isinstance(v, (int, float)):
-                nums.append(float(v))
+                fv = float(v)
             elif isinstance(v, str):
                 s = v.strip().replace(",", ".")
                 try:
-                    nums.append(float(s))
+                    fv = float(s)
                 except ValueError:
-                    pass
+                    continue
+            else:
+                continue
+
+            if not is_invalid(fv):
+                nums.append(fv)
 
         if not nums:
             return None
@@ -56,15 +71,18 @@ def safe_extract_value(data, key, list_policy="first"):
             return nums[-1]
         if list_policy == "avg":
             return sum(nums) / len(nums)
-        return nums[0]  # default: first
+        return nums[0]
 
+    # Einzelwert
     if isinstance(value, (int, float)):
-        return float(value)
+        fv = float(value)
+        return None if is_invalid(fv) else fv
 
     if isinstance(value, str):
         s = value.strip().replace(",", ".")
         try:
-            return float(s)
+            fv = float(s)
+            return None if is_invalid(fv) else fv
         except ValueError:
             return None
 

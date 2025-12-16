@@ -103,26 +103,18 @@ def generate_reports() -> None:
     # DAY Plots
     #print("Erzeuge DAY-Reports ...")
     repo.multiplot_last_sensor_values(
-        ["Outdoor_Temperature", "Indoor_Temperature",
-         "Outdoor_Humidity", "Indoor_Humidity", "battery"],
+        ["Indoor_Temperature", "Outdoor_Temperature", "Garden_Temperature", "Basement_Temperature",
+         "Indoor_Humidity", "Outdoor_Humidity", "Basement_Humidity", "battery"],
         filename=day_dir / "status.png",
         show=False,
     )
 
     repo.multiplot_sensor_values_describe(
-        ["Outdoor_Temperature", "Indoor_Temperature",
-         "Outdoor_Humidity", "Indoor_Humidity", "battery"],
+        ["Indoor_Temperature", "Outdoor_Temperature", "Garden_Temperature", "Basement_Temperature",
+         "Indoor_Humidity", "Outdoor_Humidity", "Basement_Humidity", "battery"],
         last_minus_24h,
         last_dt,
-        filename=day_dir / "describe.png",
-        show=False,
-    )
-
-    repo.plot_sensor_values(
-        "Outdoor_Temperature",
-        last_minus_24h,
-        last_dt,
-        filename=day_dir / "Outdoor_Temperature_last_minus_24h.png",
+        filename=day_dir / "00_describe.png",
         show=False,
     )
 
@@ -130,7 +122,31 @@ def generate_reports() -> None:
         "Indoor_Temperature",
         last_minus_24h,
         last_dt,
-        filename=day_dir / "Indoor_Temperature_last_minus_24h.png",
+        filename=day_dir / "01_Indoor_Temperature_last_minus_24h.png",
+        show=False,
+    )
+
+    repo.plot_sensor_values(
+        "Outdoor_Temperature",
+        last_minus_24h,
+        last_dt,
+        filename=day_dir / "02_Outdoor_Temperature_last_minus_24h.png",
+        show=False,
+    )
+
+    repo.plot_sensor_values(
+        "Garden_Temperature",
+        last_minus_24h,
+        last_dt,
+        filename=week_dir / "03_Garden_Temperature_last_minus_24h.png",
+        show=False,
+    )
+
+    repo.plot_sensor_values(
+        "Basement_Temperature",
+        last_minus_24h,
+        last_dt,
+        filename=week_dir / "04_Basement_Temperature_last_minus_24h.png",
         show=False,
     )
 
@@ -145,7 +161,7 @@ def generate_reports() -> None:
          "Indoor_Humidity", "Outdoor_Humidity", "Garden_Humidity", "battery"],
         last_minus_1w,
         last_dt,
-        filename=week_dir / "describe.png",
+        filename=week_dir / "00_describe.png",
         show=False,
     )
 
@@ -153,7 +169,7 @@ def generate_reports() -> None:
         "Indoor_Temperature",
         last_minus_1w,
         last_dt,
-        filename=week_dir / "Indoor_Temperature_last_minus_1w.png",
+        filename=week_dir / "01_Indoor_Temperature_last_minus_1w.png",
         show=False,
     )
 
@@ -161,7 +177,7 @@ def generate_reports() -> None:
         "Outdoor_Temperature",
         last_minus_1w,
         last_dt,
-        filename=week_dir / "Outdoor_Temperature_last_minus_1w.png",
+        filename=week_dir / "02_Outdoor_Temperature_last_minus_1w.png",
         show=False,
     )
 
@@ -169,7 +185,15 @@ def generate_reports() -> None:
         "Garden_Temperature",
         last_minus_1w,
         last_dt,
-        filename=week_dir / "Garden_Temperature_last_minus_1w.png",
+        filename=week_dir / "03_Garden_Temperature_last_minus_1w.png",
+        show=False,
+    )
+
+    repo.plot_sensor_values(
+        "Basement_Temperature",
+        last_minus_1w,
+        last_dt,
+        filename=week_dir / "04_Basement_Temperature_last_minus_1w.png",
         show=False,
     )
 
