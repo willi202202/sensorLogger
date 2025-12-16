@@ -141,11 +141,19 @@ def generate_reports() -> None:
     shutil.copy2(day_dir / "status.png", week_dir / "status.png")
 
     repo.multiplot_sensor_values_describe(
-        ["Outdoor_Temperature", "Indoor_Temperature",
-         "Outdoor_Humidity", "Indoor_Humidity", "battery"],
+        ["Indoor_Temperature", "Outdoor_Temperature", "Garden_Temperature",
+         "Indoor_Humidity", "Outdoor_Humidity", "Garden_Humidity", "battery"],
         last_minus_1w,
         last_dt,
         filename=week_dir / "describe.png",
+        show=False,
+    )
+
+    repo.plot_sensor_values(
+        "Indoor_Temperature",
+        last_minus_1w,
+        last_dt,
+        filename=week_dir / "Indoor_Temperature_last_minus_1w.png",
         show=False,
     )
 
@@ -158,10 +166,10 @@ def generate_reports() -> None:
     )
 
     repo.plot_sensor_values(
-        "Indoor_Temperature",
+        "Garden_Temperature",
         last_minus_1w,
         last_dt,
-        filename=week_dir / "Indoor_Temperature_last_minus_1w.png",
+        filename=week_dir / "Garden_Temperature_last_minus_1w.png",
         show=False,
     )
 

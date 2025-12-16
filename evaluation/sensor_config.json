@@ -27,19 +27,19 @@
     },
     "temperature2": {
       "name": "temperature2",
-      "alias": "temp2",
+      "alias": "Garden_Temperature",
       "unit": "°C",
       "round": 1,
-      "limits": [-30, 50],
-      "warn": [-20, 40],
-      "alarm": [-25, 45],
+      "limits": [-10, 40],
+      "warn": [3, 28],
+      "alarm": [0, 35],
       "plot": {
         "color": "tab:orange"
       }
     },
     "humidity2": {
       "name": "humidity2",
-      "alias": "hum2",
+      "alias": "Garden_Humidity",
       "unit": "%RH",
       "round": 0,
       "limits": [0, 100],
