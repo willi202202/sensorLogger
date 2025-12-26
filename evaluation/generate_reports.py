@@ -299,7 +299,7 @@ def generate_reports() -> None:
     generate_image_json(month_dir, output_json="images.json", status_image="status.png")
 
     # YEAR Plots
-    show = True
+    show = False
     #print("Erzeuge YEAR-Reports ...")
     shutil.copy2(day_dir / "status.png", year_dir / "status.png")
 
