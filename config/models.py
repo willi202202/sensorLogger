@@ -211,6 +211,7 @@ class TimestampConfig:
 class TableConfig:
     key: str                     # key under TABLE, e.g. "measurements_th"
     name: str                    # table name in DB (usually same)
+    alias: str                   # short name / alias
     sensor_id: str
     timestamp: TimestampConfig
     sensors: Dict[str, Sensor] = field(default_factory=dict)
@@ -225,6 +226,7 @@ class TableConfig:
         return TableConfig(
             key=key,
             name=d.get("name", key),
+            alias=d.get("alias", key),
             sensor_id=d.get("sensor_id", ""),
             timestamp=ts,
             sensors=sensors,
@@ -352,11 +354,32 @@ class SystemConfig:
             mail=MailConfig.from_dict(cfg.get("MAIL", {}) or {}),
             tables=tables,
         )
-
+    
+    def get_table_by_key(self, table_key: str) -> Optional[TableConfig]:
+        return self.tables.get(table_key)
+    
+    def get_table_by_alias(self, alias: str) -> Optional[TableConfig]:
+        for t in self.tables.values():
+            if t.alias == alias:
+                return t
+        return None
+    
     def get_table_by_sensor_id(self, sensor_id: str) -> Optional[TableConfig]:
         for t in self.tables.values():
             if t.sensor_id == sensor_id:
                 return t
+        return None
+    
+    def get_sensor_by_key(self, table_key, sensor_key: str) -> Optional[Sensor]:
+        table = self.get_table_by_key(table_key)
+        if table is not None:
+            return table.get_sensor(sensor_key)
+        return None
+    
+    def get_sensor_by_alias(self, table_alias, sensor_alias: str) -> Optional[Sensor]:
+        table = self.get_table_by_alias(table_alias)
+        if table is not None:
+            return table.get_sensor_by_alias(sensor_alias)
         return None
 
 

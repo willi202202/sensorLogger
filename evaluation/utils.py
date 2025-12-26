@@ -3,11 +3,14 @@ import json
 import webbrowser
 import http.server
 import socketserver
+import pandas as pd
+
 from threading import Thread
 from pathlib import Path
 from datetime import datetime
-from models import Sensor
-import pandas as pd
+
+from config.models import Sensor
+
 
 def format_iso_timestamp(ts, fmt="%Y-%m-%d %H:%M"):
     """

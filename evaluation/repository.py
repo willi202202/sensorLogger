@@ -2,14 +2,15 @@
 import os
 import sqlite3
 import pandas as pd
-from datetime import datetime
 import matplotlib.pyplot as plt
+
+from datetime import datetime
 from collections import defaultdict
 from pathlib import Path
-from SensorStats import SensorStats
-from utils import format_iso_timestamp, fmt
 
-from errors import ConfigError, DatabaseFileNotFound, TableNotFound, ColumnNotFound
+from evaluation.utils import format_iso_timestamp, fmt
+from evaluation.SensorStats import SensorStats
+from evaluation.exceptions import ConfigError, DatabaseFileNotFound, TableNotFound, ColumnNotFound
 
 
 class SensorRepository:
@@ -23,79 +24,92 @@ class SensorRepository:
         if validate_schema:
             self._validate_schema()
 
-    # ----------------- Schema-Validierung -----------------
-
     def _validate_schema(self):
-        """Prüft DB-File, Tabelle, Timestamp-Feld und Sensor-Felder."""
+        """
+        Prüft:
+        - DB-File existiert
+        - jede konfigurierte Tabelle existiert
+        - Timestamp-Spalte existiert
+        - alle Sensor-Spalten existieren
+
+        Rueckgabe:
+        inactive_tables: dict[table_key, reason]
+        """
+        cfg = self.config  # SystemConfig
 
         # 1) DB-File existiert?
-        if not self.config.db_file:
+        if not cfg.db_file:
             raise ConfigError("DB_FILE ist in der JSON-Konfiguration nicht gesetzt.")
 
-        if not os.path.isfile(self.config.db_file):
-            raise DatabaseFileNotFound(f"DB-File existiert nicht: {self.config.db_file}")
+        if not os.path.isfile(cfg.db_file):
+            raise DatabaseFileNotFound(f"DB-File existiert nicht: {cfg.db_file}")
 
-        # Verbindung öffnen
-        conn = sqlite3.connect(self.config.db_file)
+        # 2) Tabellen definiert?
+        if not cfg.tables:
+            raise ConfigError("TABLE ist in der JSON-Konfiguration nicht gesetzt oder leer.")
+
+        inactive_tables = {}
+
+        conn = sqlite3.connect(cfg.db_file)
         try:
             cur = conn.cursor()
 
-            # 2) Tabelle existiert?
-            if not self.config.table_name:
-                raise ConfigError("TABLE_NAME ist in der JSON-Konfiguration nicht gesetzt.")
+            for table_key, tcfg in cfg.tables.items():
+                table_name = tcfg.name
+                ts_field = tcfg.timestamp.name
 
-            cur.execute(
-                "SELECT name FROM sqlite_master WHERE type='table' AND name=?;",
-                (self.config.table_name,),
-            )
-            row = cur.fetchone()
-            if row is None:
-                raise TableNotFound(
-                    f"Tabelle '{self.config.table_name}' existiert nicht in DB '{self.config.db_file}'."
+                # 2a) Tabelle existiert?
+                cur.execute(
+                    "SELECT name FROM sqlite_master WHERE type='table' AND name=?;",
+                    (table_name,),
                 )
+                if cur.fetchone() is None:
+                    inactive_tables[table_key] = (
+                        f"Tabelle '{table_name}' existiert nicht in DB '{cfg.db_file}'."
+                    )
+                    continue
 
-            # 3) Spalteninformationen holen
-            cur.execute(f"PRAGMA table_info({self.config.table_name});")
-            columns_info = cur.fetchall()
-            if not columns_info:
-                raise ConfigError(
-                    f"Konnte keine Spalteninfo für Tabelle '{self.config.table_name}' lesen."
-                )
+                # 2b) Spalteninfos holen
+                cur.execute(f"PRAGMA table_info({table_name});")
+                columns_info = cur.fetchall()
+                if not columns_info:
+                    inactive_tables[table_key] = (
+                        f"Konnte keine Spalteninfo für Tabelle '{table_name}' lesen."
+                    )
+                    continue
 
-            # Column-Namen extrahieren
-            column_names = {col[1] for col in columns_info}  # col[1] = name
+                column_names = {col[1] for col in columns_info}
 
-            # 4) Timestamp-Feld vorhanden?
-            if not self.config.timestamp_field:
-                raise ConfigError("TIMESTAMP_FIELD ist in der JSON-Konfiguration nicht gesetzt.")
+                # 2c) Timestamp-Feld vorhanden?
+                if ts_field not in column_names:
+                    inactive_tables[table_key] = (
+                        f"Timestamp-Feld '{ts_field}' fehlt in Tabelle '{table_name}'. "
+                        f"Verfügbare Spalten: {sorted(column_names)}"
+                    )
+                    continue
 
-            if self.config.timestamp_field not in column_names:
-                raise ColumnNotFound(
-                    f"TIMESTAMP_FIELD '{self.config.timestamp_field}' existiert nicht in Tabelle "
-                    f"'{self.config.table_name}'. Verfügbare Spalten: {sorted(column_names)}"
-                )
+                # 2d) Sensor-Felder vorhanden?
+                missing = []
+                for sensor_key in tcfg.sensors.keys():
+                    if sensor_key not in column_names:
+                        missing.append(sensor_key)
 
-            # 5) Alle Sensor-Felder vorhanden?
-            missing_sensors = []
-            for sensor in self.config.sensors.values():
-                #print("Prüfe Sensor-Spalte:", sensor.id)
-                col = sensor.id  # Annahme: Spaltenname = sensor.id z.B. "temperature1"
-                if col not in column_names:
-                    missing_sensors.append(col)
-
-            if missing_sensors:
-                raise ColumnNotFound(
-                    "Folgende Sensor-Spalten fehlen in der Tabelle "
-                    f"'{self.config.table_name}': {missing_sensors}. "
-                    f"Verfügbare Spalten: {sorted(column_names)}"
-                )
+                if missing:
+                    inactive_tables[table_key] = (
+                        f"Sensor-Spalten fehlen in Tabelle '{table_name}': {missing}. "
+                        f"Verfügbare Spalten: {sorted(column_names)}"
+                    )
+                    continue
 
         finally:
             conn.close()
 
+        if inactive_tables:
+            raise ColumnNotFound("Schema mismatch:\n" + "\n".join(f"{k}: {v}" for k,v in inactive_tables.items()))
+
     # ----------------- Datenabfrage -----------------
-    def get_last_battery_status(self, printnow=False):
-        sensor, df = self.get_sensor_values("battery", start_time=None, stop_time=None)
+    def get_last_battery_status(self, table_key, printnow=False):
+        table, sensor, df = self.get_sensor_values(table_key, "Battery_Status", start_time=None, stop_time=None, by_alias=True)
         
         if df is None:
             if printnow:
@@ -111,14 +125,13 @@ class SensorRepository:
         if printnow:
             last_ts_str = format_iso_timestamp(last_ts, "%Y-%m-%d %H:%M")
             if last_val == 1:
-                print(f"Battery: OK at {last_ts_str}")
+                print(f"Sensor {table.sensor_id} ({table_key}) Battery: OK at {last_ts_str}")
             else:
-                print(f"Battery: NOK at {last_ts_str}")
+                print(f"Sensor {table.sensor_id} ({table_key}) Battery: NOK at {last_ts_str}")
 
         return last_val == 1, last_ts
 
-
-    def get_last_sensor_value(self, sensor_keys, printnow=False):
+    def get_last_sensor_value(self, table_key, sensor_keys, printnow=False, by_alias=True):
         """
         Liest den letzten bekannten Wert eines oder mehrerer Sensoren aus der Datenbank.
 
@@ -134,13 +147,13 @@ class SensorRepository:
 
         results = {}
 
-        for key in sensor_keys:
-            sensor, df = self.get_sensor_values(key, start_time=None, stop_time=None)
+        for sensor_key in sensor_keys:
+            table, sensor, df = self.get_sensor_values(table_key, sensor_key, start_time=None, stop_time=None, by_alias=by_alias)
 
             if df.empty:
-                results[key] = (None, None, sensor)
+                results[sensor_key] = (None, None, sensor)
                 if printnow:
-                    print(f"{sensor.alias or key}: keine Daten vorhanden")
+                    print(f"{sensor.alias or sensor_key}: keine Daten vorhanden")
                 continue
 
             # timestamp sicher konvertieren
@@ -151,7 +164,7 @@ class SensorRepository:
             last_ts = last_row["timestamp"]
             last_ts = format_iso_timestamp(last_ts, "%Y-%m-%d %H:%M")
 
-            results[key] = (last_val, last_ts, sensor)
+            results[sensor_key] = (last_val, last_ts, sensor)
 
             if printnow:
                 # Rundung aus JSON
@@ -161,27 +174,52 @@ class SensorRepository:
                 print(f"{sensor.alias or sensor.id}: {val_str} {sensor.unit} at {last_ts}")
 
         return results
+    
+    def get_table(self, table_key, by_alias=True):
+        """
+        Liefert das TableConfig-Objekt für den angegebenen table_key.
+        """
+        if by_alias:
+            table = self.config.get_table_by_alias(table_key)
+        else:
+            table = self.config.get_table_by_key(table_key)
 
-    def get_sensor_values(self, sensor_key, start_time=None, stop_time=None):
+        if table is None:
+            raise ConfigError(f"Unbekannte Tabelle: {table_key} (by_alias={by_alias})")
+
+        return table
+    
+    def get_table_and_sensor(self, table_key, sensor_key, by_alias=True):
+        """
+        Liefert das Sensor-Objekt für den angegebenen sensor_key in der angegebenen Tabelle.
+        """
+        table = self.get_table(table_key, by_alias=by_alias)
+
+        if by_alias:
+            sensor = table.get_sensor_by_alias(sensor_key)
+        else:
+            sensor = table.get_sensor(sensor_key)
+
+        if sensor is None:
+            raise ConfigError(f"Unbekannter Sensor: {sensor_key} in Tabelle {table_key} (by_alias={by_alias})")
+
+        return table, sensor
+
+    def get_sensor_values(self, table_key, sensor_key, start_time=None, stop_time=None, by_alias=True):
         """
         Liefert Werte eines Sensors als DataFrame:
         Spalten: [timestamp, value]
 
         sensor_key : Sensor-ID (z.B. "temperature1") oder Alias ("temp1", wenn by_alias=True)
         """
-        # Sensorobjekt holen
-        sensor = self.config.get_sensor_by_alias(sensor_key)
-        if sensor is None:
-            sensor = self.config.get_sensor(sensor_key)
-            if sensor is None:
-                raise ConfigError(f"Unbekannter Sensor: {sensor_key} (by_alias={by_alias})")
+        table, sensor = self.get_table_and_sensor(table_key, sensor_key, by_alias=by_alias)
 
-        ts_col = self.config.timestamp_field
-        val_col = sensor.id  # Spaltenname in der DB
+        ts_col = table.timestamp.name # Timestamp-Spaltenname in der DB
+        val_col = sensor.name         # Spaltenname in der DB
 
         query = f"""
             SELECT {ts_col} AS timestamp, {val_col} AS value
-            FROM {self.config.table_name}
+            FROM {table.name}
             WHERE 1=1
         """
 
@@ -207,7 +245,7 @@ class SensorRepository:
         finally:
             conn.close()
 
-        return sensor, df
+        return table, sensor, df
 
     def get_sensor_values_describe(self, sensor_key, start_time=None, stop_time=None, printnow=False):
         """
@@ -243,8 +281,8 @@ class SensorRepository:
             print(f"Min: {sSt.min_val} {sensor.unit} at {sSt.formatted_min_timestamp()}")
         return sSt
 
-    def plot_sensor_values(self, sensor_key, start_time=None, stop_time=None,
-                       filename=None, show=False):
+    def plot_sensor_values(self, table_key, sensor_key, start_time=None, stop_time=None,
+                       title=None, filename=None, show=False, by_alias=True):
         """
         Plottet die Werte eines Sensors, inklusive:
         - Sensorfarbe aus JSON
@@ -253,7 +291,7 @@ class SensorRepository:
         """
 
         # Sensor & Werte laden
-        sensor, df = self.get_sensor_values(sensor_key, start_time, stop_time)
+        table, sensor, df = self.get_sensor_values(table_key, sensor_key, start_time, stop_time, by_alias=by_alias)
 
         if df.empty:
             print("⚠️ Keine Daten zum Plotten vorhanden!")
@@ -268,7 +306,10 @@ class SensorRepository:
         mean_value = df["value"].mean()
 
         # Plot Farbe aus JSON (fallback: blue)
-        color = sensor.plot.get("color", "tab:blue")
+        color = sensor.color
+        if color is None:
+            print("⚠️ Keine Plot-Farbe im Sensor definiert, verwende Standardfarbe 'blue'.")
+            color = "blue"
 
         # Diagramm erstellen
         plt.figure(figsize=(11, 6))
@@ -289,8 +330,11 @@ class SensorRepository:
         plt.scatter(max_row["timestamp"], max_row["value"], color="red", s=80, label="Maximum")
 
         # Titel mit Werten
+        if title is None:
+            title = f"{sensor.alias} ({sensor.key})\n"
+        
         plt.title(
-            f"{sensor.alias} ({sensor.id})\n"
+            f"{title} \n"
             f"min={min_row['value']:.2f} | mean={mean_value:.2f} | max={max_row['value']:.2f} {sensor.unit}"
         )
 
@@ -315,8 +359,8 @@ class SensorRepository:
 
         plt.close()
        
-    def multiplot_sensor_values(self, sensor_keys, start_time=None, stop_time=None,
-                            filename=None, show=False):
+    def multiplot_sensor_values(self, table_key, sensor_keys, start_time=None, stop_time=None,
+                            filename=None, title=None, show=False, by_alias=True):
         """
         Plottet mehrere Sensoren.
         
@@ -328,11 +372,11 @@ class SensorRepository:
         # Sensoren nach Einheit gruppieren: {unit: [(sensor, df), ...], ...}
         grouped = defaultdict(list)
 
-        for key in sensor_keys:
-            sensor, df = self.get_sensor_values(key, start_time, stop_time)
+        for sensor_key in sensor_keys:
+            table, sensor, df = self.get_sensor_values(table_key, sensor_key, start_time, stop_time, by_alias=by_alias)
 
             if df.empty:
-                print(f"⚠️ Keine Daten für Sensor '{key}' – wird übersprungen.")
+                print(f"⚠️ Keine Daten für Sensor '{sensor_key}' – wird übersprungen.")
                 continue
 
             # Timestamps in datetime wandeln
@@ -358,8 +402,11 @@ class SensorRepository:
             entries = grouped[unit]
 
             for sensor, df in entries:
-                color = sensor.plot.get("color") if hasattr(sensor, "plot") else None
-                label = f"{sensor.alias} ({sensor.id})"
+                color = sensor.color if hasattr(sensor, "plot") else None
+                if by_alias:
+                    label = f"{sensor.alias}"
+                else:
+                    label = f"{sensor.name}"
 
                 ax.plot(df["timestamp"], df["value"],
                         linestyle="-",
@@ -367,12 +414,14 @@ class SensorRepository:
                         color=color)
 
             # Achsenbeschriftungen
+            if title is None:
+                title = "Sensor"
             if unit:
                 ax.set_ylabel(f"[{unit}]")
-                ax.set_title(f"Sensors ({unit})")
+                ax.set_title(f"{title} ({unit})")
             else:
-                ax.set_ylabel("Wert")
-                ax.set_title("Sensors (unitless)")
+                ax.set_ylabel("Value")
+                ax.set_title(f"{title} (unitless)")
 
             ax.grid(True)
             ax.legend(loc="best")
@@ -392,7 +441,7 @@ class SensorRepository:
 
         plt.close(fig)
 
-    def multiplot_sensor_values_describe(self, sensor_keys, start_time=None, stop_time=None, filename=None, show=False):
+    def multiplot_sensor_values_describe(self, table_key, sensor_keys, start_time=None, stop_time=None, filename=None, title=None, show=False, by_alias=True):
         """
         Erzeugt eine Tabelle mit Statistikwerten für mehrere Sensoren und speichert sie als Bild.
 
@@ -402,11 +451,11 @@ class SensorRepository:
 
         rows = []
 
-        for key in sensor_keys:
-            sensor, df = self.get_sensor_values(key, start_time, stop_time)
+        for sensor_key in sensor_keys:
+            table, sensor, df = self.get_sensor_values(table_key, sensor_key, start_time, stop_time, by_alias=by_alias)
 
             if df.empty:
-                print(f"⚠️ Keine Daten für Sensor '{key}' - wird in Tabelle übersprungen.")
+                print(f"⚠️ Keine Daten für Sensor '{sensor_key}' - wird in Tabelle übersprungen.")
                 continue
 
             # Sicherstellen, dass sortiert ist (falls nicht schon)
@@ -446,7 +495,7 @@ class SensorRepository:
         fig_height = 1.2 + 0.4 * n_rows  # dynamische Höhe abhängig von Anzahl Zeilen
         fig, ax = plt.subplots(figsize=(10, fig_height))
         ax.axis("off")
-
+        
         table = ax.table(
             cellText=rows,
             colLabels=col_labels,
@@ -458,7 +507,9 @@ class SensorRepository:
         table.set_fontsize(9)
         table.scale(1, 1.4)  # etwas höher machen
 
-        ax.set_title("Sensor Statistics", pad=10)
+        if title is None:
+            title = "Sensor Statistics"
+        ax.set_title(title, pad=5)
 
         plt.tight_layout()
 
@@ -474,7 +525,7 @@ class SensorRepository:
 
         plt.close(fig)
 
-    def multiplot_last_sensor_values(self, sensor_keys, filename=None, show=False):
+    def multiplot_last_sensor_values(self, table_key, sensor_keys, filename=None, title=None, show=False):
         """
         Erstellt eine Tabelle als Bild mit dem letzten Wert mehrerer Sensoren.
 
@@ -492,7 +543,7 @@ class SensorRepository:
             sensor_keys = [sensor_keys]
 
         # nutzt deine bereits existierende Funktion
-        last_values = self.get_last_sensor_value(sensor_keys, printnow=False)
+        last_values = self.get_last_sensor_value(table_key, sensor_keys, printnow=False)
 
         rows = []
         statuses = []
@@ -569,7 +620,9 @@ class SensorRepository:
         table.set_fontsize(9)
         table.scale(1, 1.4)
 
-        ax.set_title("Last Sensor Values", pad=10)
+        if title is None:
+            title = "Last sensor values"
+        ax.set_title(title, pad=0)
 
         # Status-Spalte einfärben
         status_col_idx = col_labels.index("Status")
@@ -597,12 +650,17 @@ class SensorRepository:
 
         plt.close(fig)
 
-    def get_latest_timestamp(self):
+    def get_latest_timestamp(self, table_key, by_alias=True):
         """Gibt das jüngste Timestamp-Feld aus der Datenbank zurück, oder None wenn DB leer."""
-        ts_col = self.config.timestamp_field
+        # Table holen
+        table = self.config.get_table_by_key(table_key) if not by_alias else self.config.get_table_by_alias(table_key)
+        if table is None:
+            raise ConfigError(f"Unbekannte Tabelle: {table_key} (by_alias={by_alias})")
+
+        ts_col = table.timestamp.name # Timestamp-Spaltenname in der DB
         query = f"""
             SELECT MAX({ts_col}) AS ts
-            FROM {self.config.table_name}
+            FROM {table.name}
         """
 
         conn = sqlite3.connect(self.config.db_file)
@@ -615,12 +673,17 @@ class SensorRepository:
 
         return row[0] if row and row[0] is not None else None
 
-    def get_first_timestamp(self):
+    def get_first_timestamp(self, table_key, by_alias=True):
         """Gibt das älteste Timestamp-Feld aus der Datenbank zurück, oder None wenn DB leer."""
-        ts_col = self.config.timestamp_field
+        # Table holen
+        table = self.config.get_table_by_key(table_key) if not by_alias else self.config.get_table_by_alias(table_key)
+        if table is None:
+            raise ConfigError(f"Unbekannte Tabelle: {table_key} (by_alias={by_alias})")
+
+        ts_col = table.timestamp.name # Timestamp-Spaltenname in der DB
         query = f"""
             SELECT MIN({ts_col}) AS ts
-            FROM {self.config.table_name}
+            FROM {table.name}
         """
 
         conn = sqlite3.connect(self.config.db_file)

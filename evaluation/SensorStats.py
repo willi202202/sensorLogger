@@ -1,6 +1,6 @@
 from dataclasses import dataclass
-from utils import format_iso_timestamp
 
+from evaluation.utils import format_iso_timestamp
 
 @dataclass
 class SensorStats:
