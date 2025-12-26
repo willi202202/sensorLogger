@@ -3,7 +3,7 @@ import json
 import time
 import logging
 from http.server import BaseHTTPRequestHandler, HTTPServer
-from generate_reports import generate_reports 
+from evaluation.generate_reports import generate_reports 
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger("api")
