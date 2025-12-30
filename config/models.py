@@ -212,6 +212,7 @@ class TableConfig:
     key: str                     # key under TABLE, e.g. "measurements_th"
     name: str                    # table name in DB (usually same)
     alias: str                   # short name / alias
+    info: str                    # description/info
     sensor_id: str
     timestamp: TimestampConfig
     sensors: Dict[str, Sensor] = field(default_factory=dict)
@@ -227,6 +228,7 @@ class TableConfig:
             key=key,
             name=d.get("name", key),
             alias=d.get("alias", key),
+            info=d.get("info"),
             sensor_id=d.get("sensor_id", ""),
             timestamp=ts,
             sensors=sensors,

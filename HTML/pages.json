@@ -5,6 +5,10 @@
       "file": "raspi_report/raspi_report.html"
     },
     {
+      "title": "Table Statistics Report",
+      "file": "weather/table_statistics.html"
+    },
+    {
       "title": "Day Dashboard",
       "file": "weather/day.html"
     },

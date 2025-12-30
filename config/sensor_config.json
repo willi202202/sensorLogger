@@ -47,6 +47,7 @@
     "measurements_w": {
       "name": "measurements_w",
       "alias": "w",
+      "info": "Wind Sensor",
       "sensor_id": "0b55aada036f",
       "TIMESTAMP":{
         "name": "utms",
@@ -109,6 +110,7 @@
     "measurements_th": {
       "name": "measurements_th",
       "alias": "th",
+      "info": "Temperature and Humidity Sensor",
       "sensor_id": "11566802925f",
       "TIMESTAMP":{
         "name": "utms",

@@ -1,17 +1,22 @@
 # repository.py
 import os
 import sqlite3
+import statistics
 import pandas as pd
 import matplotlib.pyplot as plt
 
-from datetime import datetime
+from rich import print
+from datetime import datetime, timedelta
 from collections import defaultdict
 from pathlib import Path
 
 from evaluation.utils import format_iso_timestamp, fmt
 from evaluation.SensorStats import SensorStats
-from evaluation.exceptions import ConfigError, DatabaseFileNotFound, TableNotFound, ColumnNotFound
+from evaluation.exceptions import ConfigError, DatabaseFileNotFound, TableNotFound, ColumnNotFound, Database
 
+def _parse_db_timestamp(ts: str) -> datetime:
+    """Konvertiert DB-ISO-String '...Z' in datetime."""
+    return datetime.fromisoformat(ts.rstrip("Z"))
 
 class SensorRepository:
     def __init__(self, config, validate_schema=True):
@@ -108,8 +113,56 @@ class SensorRepository:
             raise ColumnNotFound("Schema mismatch:\n" + "\n".join(f"{k}: {v}" for k,v in inactive_tables.items()))
 
     # ----------------- Datenabfrage -----------------
-    def get_last_battery_status(self, table_key, printnow=False):
-        table, sensor, df = self.get_sensor_values(table_key, "Battery_Status", start_time=None, stop_time=None, by_alias=True)
+    def get_table_id(self, table_key, by_alias=True):
+        """
+        Liefert den Tabellennamen für den angegebenen table_key.
+        """
+        table = self.get_table(table_key, by_alias=by_alias)
+        return table.sensor_id
+    
+    def get_table_name(self, table_key, by_alias=True):
+        """
+        Liefert den Tabellennamen für den angegebenen table_key.
+        """
+        table = self.get_table(table_key, by_alias=by_alias)
+        return table.name
+    
+    def get_table_info(self, table_key, by_alias=True):
+        """
+        Liefert die Info/Beschreibung für den angegebenen table_key.
+        """
+        table = self.get_table(table_key, by_alias=by_alias)
+        return table.info
+
+    def get_all_table_aliases(self):
+        """
+        Liefert eine Liste aller Tabellen-Aliase.
+        """
+        return [table.alias for table in self.config.tables.values() if table.alias is not None]
+
+    def nr_of_values(self, table_key, by_alias=True):
+        """
+        Liefert die Anzahl der Einträge in der angegebenen Tabelle.
+        """
+        table = self.get_table(table_key, by_alias=by_alias)
+
+        query = f"""
+            SELECT COUNT(*) AS cnt
+            FROM {table.name}
+        """
+
+        conn = sqlite3.connect(self.config.db_file)
+        try:
+            cur = conn.cursor()
+            cur.execute(query)
+            row = cur.fetchone()
+        finally:
+            conn.close()
+
+        return row[0] if row and row[0] is not None else 0
+
+    def get_last_battery_status(self, table_key, printnow=False, by_alias=True):
+        table, sensor, df = self.get_sensor_values(table_key, "Battery_Status", start_time=None, stop_time=None, by_alias=by_alias)
         
         if df is None:
             if printnow:
@@ -650,6 +703,79 @@ class SensorRepository:
 
         plt.close(fig)
 
+    def get_table_statistics(self, table_key, by_alias=True) -> str:
+        """Return a multi-line statistics string for the given table (no prints)."""
+        lines = []
+
+        # Battery status
+        bat_ok, bat_ts = self.get_last_battery_status(table_key, printnow=False, by_alias=by_alias)
+        if bat_ok is not None:
+            lines.append(f"🔋 Battery Status: {'OK' if bat_ok else 'NOK'}")
+        else:
+            raise Database("Keine Battery Einträge in der Datenbank.")
+
+        # first/last
+        first = self.get_first_timestamp(table_key)
+        last = self.get_latest_timestamp(table_key)
+        if first is None or last is None:
+            raise Database("Keine Einträge in der Datenbank.")
+
+        first_dt = _parse_db_timestamp(first)
+        last_dt = _parse_db_timestamp(last)
+
+        lines.append(f"🕘 First DB entry: {first_dt}")
+        lines.append(f"🕘 Last  DB entry: {last_dt}")
+        days = (last_dt - first_dt).days
+        lines.append(f"🕘 Total Time: {days} days")
+
+        nr_of_val = self.nr_of_values(table_key, by_alias=by_alias)
+        lines.append(f"📊 Number DB of Values: {nr_of_val}")
+        duration_seconds = (last_dt - first_dt).total_seconds()
+        values_per_hour = nr_of_val / (duration_seconds / 3600) if duration_seconds else float('nan')
+        lines.append(f"📊 DB Values per hour: {values_per_hour:.2f}")
+        mean_interval_min = duration_seconds / 60 / nr_of_val if nr_of_val else float('nan')
+        lines.append(f"📊 Mean DB Value Interval: {mean_interval_min:.2f} minutes")
+
+        # Intervall-Statistiken (Median / StdDev / Min / Max)
+        try:
+            _, _sensor, df_ts = self.get_sensor_values(table_key, "Battery_Status", by_alias=by_alias)
+            if df_ts.empty or len(df_ts) < 2:
+                lines.append("ℹ️ Not enough timestamps to compute interval statistics.")
+            else:
+                df_ts["timestamp"] = pd.to_datetime(df_ts["timestamp"])
+                intervals = df_ts["timestamp"].diff().dt.total_seconds().dropna() / 60.0
+                intervals_list = intervals.tolist()
+                median_int = statistics.median(intervals_list)
+                stddev_int = statistics.pstdev(intervals_list)
+                min_int = min(intervals_list)
+                max_int = max(intervals_list)
+                lines.append(f"📊 Interval Stats (min/median/std/max): {min_int:.2f}/{median_int:.2f}/{stddev_int:.2f}/{max_int:.2f} min")
+
+                # Längste Datenlücke (Top N)
+                try:
+                    top_n = 10
+                    intervals_series = intervals  # pandas Series indexed like df_ts
+                    if intervals_series.empty:
+                        lines.append("ℹ️ No intervals to compute gaps.")
+                    else:
+                        top = intervals_series.sort_values(ascending=False).head(top_n)
+                        lines.append("📊 Top data gaps (minutes) — start -> end:")
+                        for rank, (idx, gap_min) in enumerate(top.items(), start=1):
+                            # gap at index idx corresponds to df_ts[idx-1] -> df_ts[idx]
+                            if idx == 0:
+                                start_ts = df_ts["timestamp"].iloc[0]
+                            else:
+                                start_ts = df_ts["timestamp"].iloc[idx - 1]
+                            end_ts = df_ts["timestamp"].iloc[idx]
+                            gap_td = timedelta(seconds=gap_min * 60)
+                            lines.append(f"{rank:2d}. {gap_min:.0f} min ({gap_td.days}d {gap_td.seconds//3600}h {(gap_td.seconds%3600)//60}m) — {start_ts} -> {end_ts}")
+                except Exception as e2:
+                    lines.append(f"[red]Error computing top gaps: {e2}[/red]")
+        except Exception as e:
+            lines.append(f"[red]Error computing interval statistics: {e}[/red]")
+
+        return "\n".join(lines)
+    
     def get_latest_timestamp(self, table_key, by_alias=True):
         """Gibt das jüngste Timestamp-Feld aus der Datenbank zurück, oder None wenn DB leer."""
         # Table holen
@@ -696,6 +822,16 @@ class SensorRepository:
 
         return row[0] if row and row[0] is not None else None
     
+    def get_db_time_range(self, table_key, by_alias=True):
+        """
+        Liefert das Zeitintervall (first_timestamp, last_timestamp) der angegebenen Tabelle.
+        Rückgabe: (str, str) im DB-ISO-Format '...Z' oder (None, None) wenn keine Daten.
+        """
+        first_ts = self.get_first_timestamp(table_key, by_alias=by_alias)
+        last_ts = self.get_latest_timestamp(table_key, by_alias=by_alias)
+
+        return first_ts, last_ts
+
     def _convert_to_db_timestamp(self, ts):
         """
         Wandelt verschiedene Datumsformate ins DB-kompatible ISO8601 'Z'-Format.
