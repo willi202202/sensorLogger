@@ -29,10 +29,10 @@ from evaluation.repository import (
 # Projektwurzel = Ordner oberhalb von evaluation/
 REPORT_ROOT = Path(__file__).resolve().parent.parent
 
-#REPORT_DIR = Path("/var/www/log/reports")
-REPORT_DIR = Path("log/reports")
-#HTML_DIR = Path("/var/www/weather")
-HTML_DIR =  Path("log/reports")
+REPORT_DIR = Path("/var/www/log/reports")
+#REPORT_DIR = Path("log/reports")
+HTML_DIR = Path("/var/www/weather")
+#HTML_DIR =  Path("log/reports")
 CONFIG_PATH = REPORT_ROOT / "config" / "sensor_config.json"
 FILENAME_TABLE_STATISTICS="table_statistics.html"
 PRINT_TABLE_STATS = True
