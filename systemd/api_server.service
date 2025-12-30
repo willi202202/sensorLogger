@@ -10,11 +10,11 @@ Requires=mqtt-logger.service
 User=raspiroman
 
 # Das Arbeitsverzeichnis, in dem die Skripte und die mobilealerts.db liegen.
-WorkingDirectory=/home/raspiroman/project/sensorlogger
+WorkingDirectory=/home/raspiroman/project/sensorLogger
 
 # Befehl zum Starten des Loggers.
 # Stellt sicher, dass Sie den korrekten Pfad zu Python3 verwenden.
-ExecStart=/usr/bin/python3 /home/raspiroman/project/sensorlogger/api_server.py
+ExecStart=/usr/bin/python3 /home/raspiroman/project/sensorLogger/api_server.py
 
 # Typ des Prozesses. 'simple' ist Standard.
 Type=simple
