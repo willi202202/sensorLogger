@@ -42,6 +42,10 @@ from exceptions import (
     InternalLoggerError,
 )
 
+import urllib.request
+import urllib.error
+import ssl
+
 
 # --------------------------
 # Helpers (strict)
@@ -256,6 +260,80 @@ class EmailNotifier:
         return ok
 
 
+class NtfyNotifier:
+    """Simple ntfy client using stdlib urllib (no external deps)."""
+    def __init__(self, cfg: 'NtfyConfig'):
+        self.enabled = bool(cfg.enabled)
+        self.server = cfg.server.rstrip('/')
+        self.topic = cfg.topic.lstrip('/')
+        self.token = cfg.token or None
+        self.subject_prefix = cfg.subject_prefix or ""
+        self._last_sent_ts: Dict[str, float] = {}
+        self._sslctx = ssl.create_default_context()
+
+    def _url(self) -> str:
+        return f"{self.server}/{self.topic}"
+
+    def send(self, title: str, body: str, priority: str = "default") -> bool:
+        if not self.enabled or not self.topic:
+            return False
+
+        # prepend subject prefix if provided
+        full_title = f"{self.subject_prefix} {title}".strip()
+
+        url = self._url()
+        data = body.encode('utf-8')
+        headers = {
+            'Title': full_title,
+            'Priority': priority,
+            'Content-Type': 'text/plain; charset=utf-8',
+        }
+        if self.token:
+            headers['Authorization'] = f"Bearer {self.token}"
+
+        req = urllib.request.Request(url, data=data, headers=headers, method='POST')
+        try:
+            with urllib.request.urlopen(req, timeout=10, context=self._sslctx) as resp:
+                code = getattr(resp, 'status', None) or getattr(resp, 'code', None)
+                return code in (200, 201, 204)
+        except urllib.error.HTTPError as e:
+            print(f"❌ ntfy HTTP error: {e.code} {e.reason}")
+            return False
+        except Exception as e:
+            print(f"❌ ntfy error: {e}")
+            return False
+
+    def send_throttled(self, key: str, title: str, body: str, min_interval_hours: Optional[int] = 6) -> bool:
+        if not self.enabled:
+            return False
+
+        if min_interval_hours is None:
+            return self.send(title, body)
+
+        try:
+            h = int(min_interval_hours)
+        except (TypeError, ValueError) as e:
+            raise ConfigError(f"Invalid min_interval_hours: {min_interval_hours!r}") from e
+
+        if h < 0:
+            raise ConfigError(f"min_interval_hours must be >= 0, got {h}")
+
+        if h == 0:
+            return self.send(title, body)
+
+        min_interval_s = h * 3600
+        now = time.time()
+        last = self._last_sent_ts.get(key)
+
+        if last is not None and (now - last) < min_interval_s:
+            return False
+
+        ok = self.send(title, body)
+        if ok:
+            self._last_sent_ts[key] = now
+        return ok
+
+
 # --------------------------
 # Logger
 # --------------------------
@@ -292,6 +370,20 @@ class MQTTLogger:
             sender=self.cfg.mail.sender,
             subject_prefix=self.cfg.mail.subject_prefix,
         )
+
+        # optional ntfy notifier (same throttling semantics)
+        try:
+            self.ntfy = None
+            # cfg.ntfy is present in SystemConfig (default disabled)
+            if getattr(self.cfg, 'ntfy', None) is not None:
+                from config.models import NtfyConfig
+                self.ntfy = None
+                try:
+                    self.ntfy = (lambda cfg: NtfyNotifier(cfg))(self.cfg.ntfy)
+                except Exception as e:
+                    print(f"⚠️ Failed to initialize ntfy notifier: {e}")
+        except Exception:
+            self.ntfy = None
 
         # mqtt
         self.client = mqtt.Client(client_id="mqtt_sqlite_logger")
@@ -364,6 +456,25 @@ class MQTTLogger:
         )
         if sent:
             self.exception_counts[sensor_id] = 0
+
+        # Also send an ntfy message if configured and its trigger is enabled
+        try:
+            ntfy_trig = getattr(self.cfg, 'ntfy', None).trigger_exceptions if getattr(self.cfg, 'ntfy', None) else None
+            if self.ntfy and ntfy_trig and ntfy_trig.enabled:
+                min_count_ntfy = int(ntfy_trig.min_count_before_mail or 1)
+                if self.exception_counts[sensor_id] >= min_count_ntfy:
+                    ntfy_key = f"ntfy:exc:{sensor_id}:{type(exc).__name__}"
+                    title = f"[ERROR] {type(exc).__name__} ({sensor_id})"
+                    ok = self.ntfy.send_throttled(
+                        key=ntfy_key,
+                        title=title,
+                        body=body,
+                        min_interval_hours=int(ntfy_trig.max_repeat_every_hours),
+                    )
+                    if ok:
+                        self.exception_counts[sensor_id] = 0
+        except Exception as e:
+            print(f"⚠️ ntfy notify error: {e}")
 
     # ---------- mqtt callbacks ----------
 
@@ -519,6 +630,19 @@ class MQTTLogger:
                     min_interval_hours=int(trig.max_repeat_every_hours),
                 )
 
+                # ntfy
+                try:
+                    ntfy_trig = getattr(self.cfg, 'ntfy', None).trigger_missing_data if getattr(self.cfg, 'ntfy', None) else None
+                    if self.ntfy and ntfy_trig and ntfy_trig.enabled:
+                        self.ntfy.send_throttled(
+                            key=f"ntfy:missing:{sid}",
+                            title=f"[ALARM] Missing MQTT data ({sid})",
+                            body=body,
+                            min_interval_hours=int(ntfy_trig.max_repeat_every_hours),
+                        )
+                except Exception as e:
+                    print(f"⚠️ ntfy missing-data notify error: {e}")
+
     def check_bad_values(self):
         trig = self.cfg.mail.trigger_bad_values
         if not (self.cfg.mail.enabled and trig.enabled):
@@ -548,6 +672,21 @@ class MQTTLogger:
             )
             if sent:
                 self.bad_value_events[sid] = 0
+
+            # ntfy
+            try:
+                ntfy_trig = getattr(self.cfg, 'ntfy', None).trigger_bad_values if getattr(self.cfg, 'ntfy', None) else None
+                if self.ntfy and ntfy_trig and ntfy_trig.enabled:
+                    ok = self.ntfy.send_throttled(
+                        key=f"ntfy:bad:{sid}",
+                        title=f"[WARN] Bad values ({sid})",
+                        body=body,
+                        min_interval_hours=int(ntfy_trig.max_repeat_every_hours),
+                    )
+                    if ok:
+                        self.bad_value_events[sid] = 0
+            except Exception as e:
+                print(f"⚠️ ntfy bad-values notify error: {e}")
 
     def check_db_size(self):
         
@@ -584,6 +723,19 @@ class MQTTLogger:
                 min_interval_hours=int(max_repeat_every_hours),
             )
 
+            # ntfy
+            try:
+                ntfy_trig = getattr(self.cfg, 'ntfy', None).trigger_db_size if getattr(self.cfg, 'ntfy', None) else None
+                if self.ntfy and ntfy_trig and ntfy_trig.enabled:
+                    self.ntfy.send_throttled(
+                        key="ntfy:dbsize:crit",
+                        title="[ALARM] DB size critical",
+                        body=body,
+                        min_interval_hours=int(ntfy_trig.max_repeat_every_hours),
+                    )
+            except Exception as e:
+                print(f"⚠️ ntfy db-size notify error: {e}")
+
         elif warn and size_mb >= warn:
             body = f"DB GROESSE WARNUNG: {size_mb:.1f} MB (WARN={warn} MB)\nDB: {self.cfg.db_file}\n"
             self.mailer.send_throttled(
@@ -592,6 +744,19 @@ class MQTTLogger:
                 body=body,
                 min_interval_hours=int(max_repeat_every_hours),
             )
+
+            # ntfy
+            try:
+                ntfy_trig = getattr(self.cfg, 'ntfy', None).trigger_db_size if getattr(self.cfg, 'ntfy', None) else None
+                if self.ntfy and ntfy_trig and ntfy_trig.enabled:
+                    self.ntfy.send_throttled(
+                        key="ntfy:dbsize:warn",
+                        title="[WARN] DB size warning",
+                        body=body,
+                        min_interval_hours=int(ntfy_trig.max_repeat_every_hours),
+                    )
+            except Exception as e:
+                print(f"⚠️ ntfy db-size notify error: {e}")
 
     def maybe_send_info_mail(self):
         trig = self.cfg.mail.trigger_info
@@ -673,6 +838,21 @@ class MQTTLogger:
             body=body,
             min_interval_hours=int(getattr(trig, "repeat_every_hours", 24)),
         )
+
+        # ntfy for start info
+        try:
+            ntfy_trig = getattr(self.cfg, 'ntfy', None).trigger_info if getattr(self.cfg, 'ntfy', None) else None
+            if self.ntfy and ntfy_trig and ntfy_trig.enabled:
+                ok = self.ntfy.send_throttled(
+                    key="ntfy:info:start",
+                    title="[INFO] MQTT Logger gestartet",
+                    body=body,
+                    min_interval_hours=int(getattr(ntfy_trig, "repeat_every_hours", 24)),
+                )
+                if ok:
+                    self._last_info_mail_ts = time.time()
+        except Exception as e:
+            print(f"⚠️ ntfy info notify error: {e}")
 
         if sent:
             self._last_info_mail_ts = time.time()

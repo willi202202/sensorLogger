@@ -43,6 +43,18 @@
       "MIN_COUNT_BEFORE_MAIL": 1
     }
   },
+  "NTFY": {
+    "ENABLED": true,
+    "SERVER": "https://ntfy.sh",
+    "TOPIC": "raspiroman",
+    "TOKEN": "",
+    "SUBJECT_PREFIX": "[MQTT-WEATHER-LOGGER]",
+    "TRIGGER_INFO": { "ENABLED": true, "REPEAT_EVERY_HOURS": 24 },
+    "TRIGGER_ALARM_ON_MISSING_DATA": { "ENABLED": true, "WINDOW_MINUTES": 120, "MAX_REPEAT_EVERY_HOURS": 6 },
+    "TRIGGER_ALARM_ON_DB_SIZE": { "ENABLED": true, "CHECK_EVERY_HOURS": 24, "MAX_REPEAT_EVERY_HOURS": 168, "WARN_MB": 500, "CRIT_MB": 800 },
+    "TRIGGER_ALARM_ON_BAD_VALUES": { "ENABLED": true, "MAX_REPEAT_EVERY_HOURS": 6 },
+    "TRIGGER_ALARM_ON_EXCEPTIONS": { "ENABLED": true, "MIN_COUNT_BEFORE_MAIL": 1, "MAX_REPEAT_EVERY_HOURS": 6 }
+  },
   "TABLE": {
     "measurements_w": {
       "name": "measurements_w",
@@ -133,7 +145,7 @@
           "name": "humidity1",
           "alias": "Outdoor_Humidity",
           "field_type": "tuple_float",
-          "invalid_map": { "-9999": null, "-9999.0": null },
+          "invalid_map": { "-9999": null, "-9999.0": null, "127": null },
           "unit": "%RH",
           "round": 0,
           "limits": [0, 100],
@@ -155,7 +167,7 @@
           "name": "humidity2",
           "alias": "Garden_Humidity",
           "field_type": "tuple_float",
-          "invalid_map": { "-9999": null, "-9999.0": null },
+          "invalid_map": { "-9999": null, "-9999.0": null, "127": null },
           "unit": "%RH",
           "round": 0,
           "limits": [0, 100],
@@ -177,7 +189,7 @@
           "name": "humidity3",
           "alias": "Basement_Humidity",
           "field_type": "tuple_float",
-          "invalid_map": { "-9999": null, "-9999.0": null },
+          "invalid_map": { "-9999": null, "-9999.0": null, "127": null },
           "unit": "%RH",
           "round": 0,
           "limits": [0, 100],
@@ -199,7 +211,7 @@
           "name": "humidityIN",
           "alias": "Indoor_Humidity",
           "field_type": "tuple_float",
-          "invalid_map": { "-9999": null, "-9999.0": null },
+          "invalid_map": { "-9999": null, "-9999.0": null, "127": null },
           "unit": "%RH",
           "round": 0,
           "limits": [0, 100],

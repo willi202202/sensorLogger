@@ -20,7 +20,7 @@ Type=simple
 
 # Neustart-Richtlinie: Startet den Dienst automatisch neu, wenn er unerwartet beendet wird.
 Restart=always
-RestartSec=10
+RestartSec=30
 
 # Standardausgabe (console.log) und Fehler in das Systemd Journal umleiten.
 StandardOutput=journal

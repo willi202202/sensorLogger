@@ -127,7 +127,7 @@ def main():
         print(f"> OK: {th_topic} (th), {w_topic} (wind)")
 
         # Fault injections
-        offset = 2
+        offset = 6
         if True:
             if counter == 1*offset:
                 publish_missing_timestamp(client, w_topic, w, ts_key="utms")

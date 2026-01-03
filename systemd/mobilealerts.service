@@ -17,7 +17,7 @@ User=raspiroman
 Restart=always
 
 # Warte 5 Sekunden nach einem Fehler, bevor neu gestartet wird.
-RestartSec=5
+RestartSec=30
 
 # Standardausgabe (console.log) an das Systemd Journal senden.
 StandardOutput=journal

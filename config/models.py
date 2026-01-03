@@ -316,6 +316,37 @@ class MailConfig:
             trigger_exceptions=MailTrigger.from_dict(d.get("TRIGGER_ALARM_ON_EXCEPTIONS", {}) or {}),
         )
 
+
+@dataclass
+class NtfyConfig:
+    enabled: bool = False
+    server: str = "https://ntfy.sh"
+    topic: str = ""
+    token: str = ""  # optional bearer token
+    subject_prefix: str = "[MQTT-LOGGER]"
+
+    trigger_info: MailTrigger = field(default_factory=MailTrigger)
+    trigger_missing_data: MailTrigger = field(default_factory=MailTrigger)
+    trigger_db_size: MailTrigger = field(default_factory=MailTrigger)
+    trigger_bad_values: MailTrigger = field(default_factory=MailTrigger)
+    trigger_exceptions: MailTrigger = field(default_factory=MailTrigger)
+
+    @staticmethod
+    def from_dict(d: Dict[str, Any]) -> "NtfyConfig":
+        return NtfyConfig(
+            enabled=bool(d.get("ENABLED", False)),
+            server=d.get("SERVER", "https://ntfy.sh"),
+            topic=d.get("TOPIC", ""),
+            token=d.get("TOKEN", ""),
+            subject_prefix=d.get("SUBJECT_PREFIX", "[MQTT-LOGGER]"),
+
+            trigger_info=MailTrigger.from_dict(d.get("TRIGGER_INFO", {}) or {}),
+            trigger_missing_data=MailTrigger.from_dict(d.get("TRIGGER_ALARM_ON_MISSING_DATA", {}) or {}),
+            trigger_db_size=MailTrigger.from_dict(d.get("TRIGGER_ALARM_ON_DB_SIZE", {}) or {}),
+            trigger_bad_values=MailTrigger.from_dict(d.get("TRIGGER_ALARM_ON_BAD_VALUES", {}) or {}),
+            trigger_exceptions=MailTrigger.from_dict(d.get("TRIGGER_ALARM_ON_EXCEPTIONS", {}) or {}),
+        )
+
 @dataclass
 class MqttBrokerConfig:
     host: str = "127.0.0.1"
@@ -338,6 +369,7 @@ class SystemConfig:
     db_file: str
     mqtt: MqttBrokerConfig
     mail: MailConfig
+    ntfy: NtfyConfig
     tables: Dict[str, TableConfig]
 
     @staticmethod
@@ -354,6 +386,7 @@ class SystemConfig:
             db_file=cfg.get("DB_FILE", ""),
             mqtt=MqttBrokerConfig.from_dict(cfg.get("MQTT_BROKER", {}) or {}),
             mail=MailConfig.from_dict(cfg.get("MAIL", {}) or {}),
+            ntfy=NtfyConfig.from_dict(cfg.get("NTFY", {}) or {}),
             tables=tables,
         )
     

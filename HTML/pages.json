@@ -5,6 +5,10 @@
       "file": "raspi_report/raspi_report.html"
     },
     {
+      "title": "Webcam Images",
+      "file": "webcam/webcam_images.html"
+    },
+    {
       "title": "Table Statistics Report",
       "file": "weather/table_statistics.html"
     },
