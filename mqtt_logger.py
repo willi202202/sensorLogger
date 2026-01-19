@@ -214,7 +214,7 @@ class MQTTLogger:
             exit(1)    
 
         # mqtt
-        self.client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION_2, client_id="mqtt_sqlite_logger")
+        self.client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id="mqtt_sqlite_logger")
         self.client.on_connect = self.on_connect
         self.client.on_message = self.on_message
 
