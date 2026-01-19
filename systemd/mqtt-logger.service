@@ -13,7 +13,7 @@ WorkingDirectory=/home/raspiroman/project/sensorLogger
 
 # Befehl zum Starten des Loggers.
 # Stellt sicher, dass Sie den korrekten Pfad zu Python3 verwenden.
-ExecStart=/usr/bin/python3 /home/raspiroman/project/sensorLogger/mqtt_logger.py
+ExecStart=/usr/bin/python3 -u /home/raspiroman/project/sensorLogger/mqtt_logger.py
 
 # Typ des Prozesses. 'simple' ist Standard.
 Type=simple
