@@ -6,55 +6,6 @@
     "TOPIC": "mobilealerts/+/json",
     "COMPACT_LOG_ENABLED": true
   },
-  "MAIL": {
-    "ENABLED": true,
-    "SENDER": "roman.willi@gmx.ch",
-    "RECIPIENT": "roman.willi@gmx.ch",
-    "SUBJECT_PREFIX": "[MQTT-WEATHER-LOGGER]",
-    "TRIGGER_INFO": {
-      "ENABLED": true,
-      "REPEAT_EVERY_HOURS": 24
-    },
-    "TRIGGER_ALARM_ON_MISSING_DATA": {
-      "ENABLED": true,
-      "WINDOW_MINUTES": 30,
-      "MAX_REPEAT_EVERY_HOURS": 6
-    },
-    "TRIGGER_ALARM_ON_DB_SIZE": {
-      "ENABLED": true,
-      "CHECK_EVERY_HOURS": 24,
-      "MAX_REPEAT_EVERY_HOURS": 168,
-      "WARN_MB": 500,
-      "CRIT_MB": 800
-    },
-    "TRIGGER_ALARM_ON_BAD_VALUES": {
-      "ENABLED": true,
-      "WINDOW_MINUTES": 30,
-      "MAX_REPEAT_EVERY_HOURS": 6
-    },
-    "TRIGGER_ALARM_ON_EXCEPTIONS": {
-      "ENABLED": true,
-      "RAISE_ON_NON_DICT_PAYLOAD": true,
-      "RAISE_ON_MISSING_TIMESTAMP": true,
-      "RAISE_ON_JSON_DECODE_ERROR": true,
-      "RAISE_ON_UNKNOWN_SENSOR_ERROR": true,
-      "MAX_REPEAT_EVERY_HOURS": 24,
-      "PAYLOAD_PREVIEW_CHARS": 1800,
-      "MIN_COUNT_BEFORE_MAIL": 1
-    }
-  },
-  "NTFY": {
-    "ENABLED": true,
-    "SERVER": "https://ntfy.sh",
-    "TOPIC": "raspiroman",
-    "TOKEN": "",
-    "SUBJECT_PREFIX": "[MQTT-WEATHER-LOGGER]",
-    "TRIGGER_INFO": { "ENABLED": true, "REPEAT_EVERY_HOURS": 24 },
-    "TRIGGER_ALARM_ON_MISSING_DATA": { "ENABLED": true, "WINDOW_MINUTES": 120, "MAX_REPEAT_EVERY_HOURS": 6 },
-    "TRIGGER_ALARM_ON_DB_SIZE": { "ENABLED": true, "CHECK_EVERY_HOURS": 24, "MAX_REPEAT_EVERY_HOURS": 168, "WARN_MB": 500, "CRIT_MB": 800 },
-    "TRIGGER_ALARM_ON_BAD_VALUES": { "ENABLED": true, "MAX_REPEAT_EVERY_HOURS": 6 },
-    "TRIGGER_ALARM_ON_EXCEPTIONS": { "ENABLED": true, "MIN_COUNT_BEFORE_MAIL": 1, "MAX_REPEAT_EVERY_HOURS": 6 }
-  },
   "TABLE": {
     "measurements_w": {
       "name": "measurements_w",

@@ -5,8 +5,8 @@
       "file": "raspi_report/raspi_report.html"
     },
     {
-      "title": "Webcam Images",
-      "file": "webcam/webcam_images.html"
+      "title": "Webcam API",
+      "file": "webcam/webcam_api.html"
     },
     {
       "title": "Table Statistics Report",

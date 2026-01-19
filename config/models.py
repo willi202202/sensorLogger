@@ -245,109 +245,6 @@ class TableConfig:
 
 
 @dataclass
-class MailTrigger:
-    enabled: bool = False
-
-    # generic rate limiting
-    repeat_every_hours: Optional[int] = None
-    max_repeat_every_hours: Optional[int] = None
-
-    # window checks
-    window_minutes: Optional[int] = None
-
-    # db size
-    check_every_hours: Optional[int] = None
-    warn_mb: Optional[int] = None
-    crit_mb: Optional[int] = None
-
-    payload_preview_chars: Optional[int] = None
-    min_count_before_mail: Optional[int] = None
-
-    # Exception policy flags
-    raise_on_unknown_sensor_error: Optional[bool] = False
-    raise_on_non_dict_payload: Optional[bool] = False
-    raise_on_missing_timestamp: Optional[bool] = False
-    raise_on_json_decode_error: Optional[bool] = False
-
-    @staticmethod
-    def from_dict(d: Dict[str, Any]) -> "MailTrigger":
-        return MailTrigger(
-            enabled=bool(d.get("ENABLED", False)),
-            repeat_every_hours=d.get("REPEAT_EVERY_HOURS"),
-            max_repeat_every_hours=d.get("MAX_REPEAT_EVERY_HOURS"),
-            window_minutes=d.get("WINDOW_MINUTES"),
-            check_every_hours=d.get("CHECK_EVERY_HOURS"),
-            warn_mb=d.get("WARN_MB"),
-            crit_mb=d.get("CRIT_MB"),
-            payload_preview_chars=d.get("PAYLOAD_PREVIEW_CHARS"),
-            min_count_before_mail=d.get("MIN_COUNT_BEFORE_MAIL"),
-            raise_on_unknown_sensor_error=bool(d.get("RAISE_ON_UNKNOWN_SENSOR_ERROR", False)),
-            raise_on_non_dict_payload=bool(d.get("RAISE_ON_NON_DICT_PAYLOAD", False)),
-            raise_on_missing_timestamp=bool(d.get("RAISE_ON_MISSING_TIMESTAMP", False)),
-            raise_on_json_decode_error=bool(d.get("RAISE_ON_JSON_DECODE_ERROR", False)),
-        )
-
-
-@dataclass
-class MailConfig:
-    enabled: bool = False
-    sender: str = ""
-    recipient: str = ""
-    subject_prefix: str = "[MQTT-LOGGER]"
-
-    trigger_info: MailTrigger = field(default_factory=MailTrigger)
-    trigger_missing_data: MailTrigger = field(default_factory=MailTrigger)
-    trigger_db_size: MailTrigger = field(default_factory=MailTrigger)
-    trigger_bad_values: MailTrigger = field(default_factory=MailTrigger)
-    trigger_exceptions: MailTrigger = field(default_factory=MailTrigger)
-
-    @staticmethod
-    def from_dict(d: Dict[str, Any]) -> "MailConfig":
-        return MailConfig(
-            enabled=bool(d.get("ENABLED", False)),
-            sender=d.get("SENDER", ""),
-            recipient=d.get("RECIPIENT", ""),
-            subject_prefix=d.get("SUBJECT_PREFIX", "[MQTT-LOGGER]"),
-
-            trigger_info=MailTrigger.from_dict(d.get("TRIGGER_INFO", {}) or {}),
-            trigger_missing_data=MailTrigger.from_dict(d.get("TRIGGER_ALARM_ON_MISSING_DATA", {}) or {}),
-            trigger_db_size=MailTrigger.from_dict(d.get("TRIGGER_ALARM_ON_DB_SIZE", {}) or {}),
-            trigger_bad_values=MailTrigger.from_dict(d.get("TRIGGER_ALARM_ON_BAD_VALUES", {}) or {}),
-            trigger_exceptions=MailTrigger.from_dict(d.get("TRIGGER_ALARM_ON_EXCEPTIONS", {}) or {}),
-        )
-
-
-@dataclass
-class NtfyConfig:
-    enabled: bool = False
-    server: str = "https://ntfy.sh"
-    topic: str = ""
-    token: str = ""  # optional bearer token
-    subject_prefix: str = "[MQTT-LOGGER]"
-
-    trigger_info: MailTrigger = field(default_factory=MailTrigger)
-    trigger_missing_data: MailTrigger = field(default_factory=MailTrigger)
-    trigger_db_size: MailTrigger = field(default_factory=MailTrigger)
-    trigger_bad_values: MailTrigger = field(default_factory=MailTrigger)
-    trigger_exceptions: MailTrigger = field(default_factory=MailTrigger)
-
-    @staticmethod
-    def from_dict(d: Dict[str, Any]) -> "NtfyConfig":
-        return NtfyConfig(
-            enabled=bool(d.get("ENABLED", False)),
-            server=d.get("SERVER", "https://ntfy.sh"),
-            topic=d.get("TOPIC", ""),
-            token=d.get("TOKEN", ""),
-            subject_prefix=d.get("SUBJECT_PREFIX", "[MQTT-LOGGER]"),
-
-            trigger_info=MailTrigger.from_dict(d.get("TRIGGER_INFO", {}) or {}),
-            trigger_missing_data=MailTrigger.from_dict(d.get("TRIGGER_ALARM_ON_MISSING_DATA", {}) or {}),
-            trigger_db_size=MailTrigger.from_dict(d.get("TRIGGER_ALARM_ON_DB_SIZE", {}) or {}),
-            trigger_bad_values=MailTrigger.from_dict(d.get("TRIGGER_ALARM_ON_BAD_VALUES", {}) or {}),
-            trigger_exceptions=MailTrigger.from_dict(d.get("TRIGGER_ALARM_ON_EXCEPTIONS", {}) or {}),
-        )
-
-@dataclass
 class MqttBrokerConfig:
     host: str = "127.0.0.1"
     port: int = 1883
@@ -419,10 +316,250 @@ class SystemConfig:
 
 
 # ---------------------------
+# Message Configuration Models
+# ---------------------------
+
+@dataclass
+class EnabledChannels:
+    ntfy: bool = False
+    mail: bool = False
+    stdout: bool = False
+    logfile: bool = False
+
+    @staticmethod
+    def from_dict(d: Dict[str, Any]) -> "EnabledChannels":
+        return EnabledChannels(
+            ntfy=bool(d.get("NTFY", False)),
+            mail=bool(d.get("MAIL", False)),
+            stdout=bool(d.get("STDOUT", False)),
+            logfile=bool(d.get("LOGFILE", False)),
+        )
+
+
+@dataclass
+class NtfyConfig:
+    enabled: bool = False
+    server: str = "https://ntfy.sh"
+    topic: str = ""
+    token: str = ""
+    priority: int = 5
+    payload_preview_chars: int = 180
+
+    @staticmethod
+    def from_dict(d: Dict[str, Any]) -> "NtfyConfig":
+        return NtfyConfig(
+            enabled=bool(d.get("ENABLED", False)),
+            server=d.get("SERVER", "https://ntfy.sh"),
+            topic=d.get("TOPIC", ""),
+            token=d.get("TOKEN", ""),
+            priority=int(d.get("PRIORITY", 5)),
+            payload_preview_chars=int(d.get("PAYLOAD_PREVIEW_CHARS", 180)),
+        )
+
+
+@dataclass
+class MailConfig:
+    enabled: bool = False
+    sender: str = ""
+    recipient: str = ""
+    payload_preview_chars: int = 1800
+
+    @staticmethod
+    def from_dict(d: Dict[str, Any]) -> "MailConfig":
+        return MailConfig(
+            enabled=bool(d.get("ENABLED", False)),
+            sender=d.get("SENDER", ""),
+            recipient=d.get("RECIPIENT", ""),
+            payload_preview_chars=int(d.get("PAYLOAD_PREVIEW_CHARS", 1800)),
+        )
+
+
+@dataclass
+class StdoutConfig:
+    enabled: bool = False
+    payload_preview_chars: int = 180
+
+    @staticmethod
+    def from_dict(d: Dict[str, Any]) -> "StdoutConfig":
+        return StdoutConfig(
+            enabled=bool(d.get("ENABLED", False)),
+            payload_preview_chars=int(d.get("PAYLOAD_PREVIEW_CHARS", 180)),
+        )
+
+
+@dataclass
+class LogfileConfig:
+    enabled: bool = False
+    path: str = ""
+    payload_preview_chars: int = 1800
+
+    @staticmethod
+    def from_dict(d: Dict[str, Any]) -> "LogfileConfig":
+        return LogfileConfig(
+            enabled=bool(d.get("ENABLED", False)),
+            path=d.get("PATH", ""),
+            payload_preview_chars=int(d.get("PAYLOAD_PREVIEW_CHARS", 1800)),
+        )
+
+
+@dataclass
+class MessageTrigger:
+    enabled: EnabledChannels
+    title: str
+
+    @staticmethod
+    def from_dict(d: Dict[str, Any]) -> "MessageTrigger":
+        return MessageTrigger(
+            enabled=EnabledChannels.from_dict(d.get("ENABLED", {})),
+            title=d.get("TITLE", ""),
+        )
+
+
+@dataclass
+class InfoTrigger(MessageTrigger):
+    @staticmethod
+    def from_dict(d: Dict[str, Any]) -> "InfoTrigger":
+        return InfoTrigger(
+            enabled=EnabledChannels.from_dict(d.get("ENABLED", {})),
+            title=d.get("TITLE", ""),
+        )
+
+
+@dataclass
+class MissingDataTrigger(MessageTrigger):
+    window_minutes: int = 30
+
+    @staticmethod
+    def from_dict(d: Dict[str, Any]) -> "MissingDataTrigger":
+        return MissingDataTrigger(
+            enabled=EnabledChannels.from_dict(d.get("ENABLED", {})),
+            title=d.get("TITLE", ""),
+            window_minutes=int(d.get("WINDOW_MINUTES", 30)),
+        )
+
+
+@dataclass
+class DbSizeTrigger(MessageTrigger):
+    check_every_hours: int = 24
+    warn_mb: int = 500
+    crit_mb: int = 800
+
+    @staticmethod
+    def from_dict(d: Dict[str, Any]) -> "DbSizeTrigger":
+        return DbSizeTrigger(
+            enabled=EnabledChannels.from_dict(d.get("ENABLED", {})),
+            title=d.get("TITLE", ""),
+            check_every_hours=int(d.get("CHECK_EVERY_HOURS", 24)),
+            warn_mb=int(d.get("WARN_MB", 500)),
+            crit_mb=int(d.get("CRIT_MB", 800)),
+        )
+
+
+@dataclass
+class BadValuesTrigger(MessageTrigger):
+    window_minutes: int = 30
+    max_repeat_every_hours: int = 6
+
+    @staticmethod
+    def from_dict(d: Dict[str, Any]) -> "BadValuesTrigger":
+        return BadValuesTrigger(
+            enabled=EnabledChannels.from_dict(d.get("ENABLED", {})),
+            title=d.get("TITLE", ""),
+            window_minutes=int(d.get("WINDOW_MINUTES", 30)),
+            max_repeat_every_hours=int(d.get("MAX_REPEAT_EVERY_HOURS", 6)),
+        )
+
+
+@dataclass
+class NonDictPayloadTrigger(MessageTrigger):
+    @staticmethod
+    def from_dict(d: Dict[str, Any]) -> "NonDictPayloadTrigger":
+        return NonDictPayloadTrigger(
+            enabled=EnabledChannels.from_dict(d.get("ENABLED", {})),
+            title=d.get("TITLE", ""),
+        )
+
+
+@dataclass
+class MissingTimestampTrigger(MessageTrigger):
+    @staticmethod
+    def from_dict(d: Dict[str, Any]) -> "MissingTimestampTrigger":
+        return MissingTimestampTrigger(
+            enabled=EnabledChannels.from_dict(d.get("ENABLED", {})),
+            title=d.get("TITLE", ""),
+        )
+
+
+@dataclass
+class JsonDecodeErrorTrigger(MessageTrigger):
+    @staticmethod
+    def from_dict(d: Dict[str, Any]) -> "JsonDecodeErrorTrigger":
+        return JsonDecodeErrorTrigger(
+            enabled=EnabledChannels.from_dict(d.get("ENABLED", {})),
+            title=d.get("TITLE", ""),
+        )
+
+
+@dataclass
+class UnknownSensorErrorTrigger(MessageTrigger):
+    @staticmethod
+    def from_dict(d: Dict[str, Any]) -> "UnknownSensorErrorTrigger":
+        return UnknownSensorErrorTrigger(
+            enabled=EnabledChannels.from_dict(d.get("ENABLED", {})),
+            title=d.get("TITLE", ""),
+        )
+
+
+@dataclass
+class MessageConfig:
+    subject_prefix: str = ""
+    max_repeat_hours: int = 48
+    ntfy: NtfyConfig = field(default_factory=NtfyConfig)
+    mail: MailConfig = field(default_factory=MailConfig)
+    stdout: StdoutConfig = field(default_factory=StdoutConfig)
+    logfile: LogfileConfig = field(default_factory=LogfileConfig)
+    info: InfoTrigger = field(default_factory=InfoTrigger)
+    missing_data: MissingDataTrigger = field(default_factory=MissingDataTrigger)
+    db_size: DbSizeTrigger = field(default_factory=DbSizeTrigger)
+    bad_values: BadValuesTrigger = field(default_factory=BadValuesTrigger)
+    non_dict_payload: NonDictPayloadTrigger = field(default_factory=NonDictPayloadTrigger)
+    missing_timestamp: MissingTimestampTrigger = field(default_factory=MissingTimestampTrigger)
+    json_decode_error: JsonDecodeErrorTrigger = field(default_factory=JsonDecodeErrorTrigger)
+    unknown_sensor_error: UnknownSensorErrorTrigger = field(default_factory=UnknownSensorErrorTrigger)
+
+    @staticmethod
+    def load(path: str) -> "MessageConfig":
+        with open(path, "r", encoding="utf-8") as f:
+            cfg = json.load(f)
+
+        msg_triggers = cfg.get("MSG_TRIGGER", {})
+
+        return MessageConfig(
+            subject_prefix=cfg.get("SUBJECT_PREFIX", ""),
+            max_repeat_hours=int(cfg.get("MAX_REPEAT_HOURS", 48)),
+            ntfy=NtfyConfig.from_dict(cfg.get("NTFY", {})),
+            mail=MailConfig.from_dict(cfg.get("MAIL", {})),
+            stdout=StdoutConfig.from_dict(cfg.get("STDOUT", {})),
+            logfile=LogfileConfig.from_dict(cfg.get("LOGFILE", {})),
+            info=InfoTrigger.from_dict(msg_triggers.get("INFO", {})),
+            missing_data=MissingDataTrigger.from_dict(msg_triggers.get("MISSING_DATA", {})),
+            db_size=DbSizeTrigger.from_dict(msg_triggers.get("DB_SIZE", {})),
+            bad_values=BadValuesTrigger.from_dict(msg_triggers.get("BAD_VALUES", {})),
+            non_dict_payload=NonDictPayloadTrigger.from_dict(msg_triggers.get("NON_DICT_PAYLOAD", {})),
+            missing_timestamp=MissingTimestampTrigger.from_dict(msg_triggers.get("MISSING_TIMESTAMP", {})),
+            json_decode_error=JsonDecodeErrorTrigger.from_dict(msg_triggers.get("JSON_DECODE_ERROR", {})),
+            unknown_sensor_error=UnknownSensorErrorTrigger.from_dict(msg_triggers.get("UNKNOWN_SENSOR_ERROR", {})),
+        )
+
+
+# ---------------------------
 # Demo / quick test
 # ---------------------------
 
 if __name__ == "__main__":
+    print("=" * 60)
+    print("SYSTEM CONFIG TEST")
+    print("=" * 60)
     config = SystemConfig.load("sensor_config.json")
 
     print("DB File:", config.db_file)
@@ -435,3 +572,26 @@ if __name__ == "__main__":
         print("Sensor:", s)
         print("sanitize -9999.0 ->", s.sanitize_value(-9999.0))
         print("sanitize '21.37' ->", s.sanitize_value("21.37"))
+
+    print("\n" + "=" * 60)
+    print("MESSAGE CONFIG TEST")
+    print("=" * 60)
+    msg_config = MessageConfig.load("msg_config.json")
+
+    print("Subject Prefix:", msg_config.subject_prefix)
+    print("Max Repeat Hours:", msg_config.max_repeat_hours)
+    print("Ntfy Enabled:", msg_config.ntfy.enabled)
+    print("Ntfy Server:", msg_config.ntfy.server)
+    print("Ntfy Topic:", msg_config.ntfy.topic)
+    print("Mail Enabled:", msg_config.mail.enabled)
+    print("Mail From:", msg_config.mail.sender)
+    print("Mail To:", msg_config.mail.recipient)
+    print("Stdout Enabled:", msg_config.stdout.enabled)
+    print("Logfile Enabled:", msg_config.logfile.enabled)
+    print("Logfile Path:", msg_config.logfile.path)
+
+    print("\nMessage Triggers:")
+    print(f"  INFO: {msg_config.info.title} - {msg_config.info.enabled.logfile}")
+    print(f"  MISSING_DATA: {msg_config.missing_data.title} - Window: {msg_config.missing_data.window_minutes}min")
+    print(f"  DB_SIZE: {msg_config.db_size.title} - Warn: {msg_config.db_size.warn_mb}MB, Crit: {msg_config.db_size.crit_mb}MB")
+    print(f"  BAD_VALUES: {msg_config.bad_values.title} - Max Repeat: {msg_config.bad_values.max_repeat_every_hours}h")

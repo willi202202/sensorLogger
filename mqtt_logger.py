@@ -31,12 +31,9 @@ from typing import Any, Dict, Optional, Set
 from paho.mqtt import client as mqtt
 
 from config.models import SystemConfig, TableConfig
+from msg_sender import MessageSender
 from exceptions import (
     MQTTLoggerError,
-    JSONPayloadDecodeError,
-    PayloadFormatError,
-    MissingTimestampError,
-    UnknownSensorError,
     DatabaseError,
     ConfigError,
     InternalLoggerError,
@@ -45,6 +42,14 @@ from exceptions import (
 import urllib.request
 import urllib.error
 import ssl
+
+
+# --------------------------
+# Constants
+# --------------------------
+
+CONFIG_SENSOR_PATH = "config/sensor_config.json"
+CONFIG_MESSAGE_PATH = "config/msg_config.json"
 
 
 # --------------------------
@@ -164,174 +169,7 @@ class DatabaseManager:
         )
 
 
-# --------------------------
-# Mail
-# --------------------------
-
-class EmailNotifier:
-    def __init__(self, enabled: bool, recipient: str, sender: Optional[str] = None, subject_prefix: str = ""):
-        self.enabled = bool(enabled)
-        self.recipient = recipient
-        self.sender = sender
-        self.subject_prefix = subject_prefix or ""
-        self._last_sent_ts: Dict[str, float] = {}  # key -> last sent unix time
-
-    def _build_subject(self, subject: str) -> str:
-        s = f"{self.subject_prefix} {subject}".strip()
-        return " ".join(s.split())
-
-    def send_mail(self, subject: str, body: str) -> bool:
-        if not self.enabled:
-            return False
-
-        full_subject = self._build_subject(subject)
-
-        # Windows: Simulation
-        if os.name == "nt":
-            print("📧 [MAIL-SIMULATION – WINDOWS]")
-            print("SUBJECT:", full_subject)
-            print("BODY:\n", body)
-            print("-" * 60)
-            return True
-
-        # Linux: absolute path (systemd PATH safe)
-        cmd = ["/usr/bin/mail", "-s", full_subject, self.recipient]
-
-        try:
-            subprocess.run(
-                cmd,
-                input=body.encode("utf-8"),
-                capture_output=True,
-                check=True,
-            )
-            print(f"📧 E-Mail gesendet: '{full_subject}'")
-            return True
-
-        except FileNotFoundError:
-            print("❌ Fehler: /usr/bin/mail nicht gefunden. (mailutils/bsd-mailx installiert?)")
-            return False
-        except subprocess.CalledProcessError as e:
-            print(f"❌ Fehler beim Senden der E-Mail: {e}")
-            return False
-        except Exception as e:
-            print(f"❌ Unbekannter Fehler beim Senden der E-Mail: {e}")
-            return False
-
-    def send_throttled(
-        self,
-        key: str,
-        subject: str,
-        body: str,
-        min_interval_hours: Optional[int] = 6
-    ) -> bool:
-        """
-        Sends an email with rate limiting per key.
-        - min_interval_hours=None -> no limit
-        - min_interval_hours=0 -> no limit (useful for testing)
-        - min_interval_hours>0 -> limit
-        """
-        if not self.enabled:
-            return False
-
-        if min_interval_hours is None:
-            return self.send_mail(subject, body)
-
-        try:
-            h = int(min_interval_hours)
-        except (TypeError, ValueError) as e:
-            raise ConfigError(f"Invalid min_interval_hours: {min_interval_hours!r}") from e
-
-        if h < 0:
-            raise ConfigError(f"min_interval_hours must be >= 0, got {h}")
-
-        if h == 0:
-            return self.send_mail(subject, body)
-
-        min_interval_s = h * 3600
-        now = time.time()
-        last = self._last_sent_ts.get(key)
-
-        if last is not None and (now - last) < min_interval_s:
-            return False
-
-        ok = self.send_mail(subject, body)
-        if ok:
-            self._last_sent_ts[key] = now
-        return ok
-
-
-class NtfyNotifier:
-    """Simple ntfy client using stdlib urllib (no external deps)."""
-    def __init__(self, cfg: 'NtfyConfig'):
-        self.enabled = bool(cfg.enabled)
-        self.server = cfg.server.rstrip('/')
-        self.topic = cfg.topic.lstrip('/')
-        self.token = cfg.token or None
-        self.subject_prefix = cfg.subject_prefix or ""
-        self._last_sent_ts: Dict[str, float] = {}
-        self._sslctx = ssl.create_default_context()
-
-    def _url(self) -> str:
-        return f"{self.server}/{self.topic}"
-
-    def send(self, title: str, body: str, priority: str = "default") -> bool:
-        if not self.enabled or not self.topic:
-            return False
-
-        # prepend subject prefix if provided
-        full_title = f"{self.subject_prefix} {title}".strip()
-
-        url = self._url()
-        data = body.encode('utf-8')
-        headers = {
-            'Title': full_title,
-            'Priority': priority,
-            'Content-Type': 'text/plain; charset=utf-8',
-        }
-        if self.token:
-            headers['Authorization'] = f"Bearer {self.token}"
-
-        req = urllib.request.Request(url, data=data, headers=headers, method='POST')
-        try:
-            with urllib.request.urlopen(req, timeout=10, context=self._sslctx) as resp:
-                code = getattr(resp, 'status', None) or getattr(resp, 'code', None)
-                return code in (200, 201, 204)
-        except urllib.error.HTTPError as e:
-            print(f"❌ ntfy HTTP error: {e.code} {e.reason}")
-            return False
-        except Exception as e:
-            print(f"❌ ntfy error: {e}")
-            return False
-
-    def send_throttled(self, key: str, title: str, body: str, min_interval_hours: Optional[int] = 6) -> bool:
-        if not self.enabled:
-            return False
-
-        if min_interval_hours is None:
-            return self.send(title, body)
-
-        try:
-            h = int(min_interval_hours)
-        except (TypeError, ValueError) as e:
-            raise ConfigError(f"Invalid min_interval_hours: {min_interval_hours!r}") from e
-
-        if h < 0:
-            raise ConfigError(f"min_interval_hours must be >= 0, got {h}")
-
-        if h == 0:
-            return self.send(title, body)
-
-        min_interval_s = h * 3600
-        now = time.time()
-        last = self._last_sent_ts.get(key)
-
-        if last is not None and (now - last) < min_interval_s:
-            return False
-
-        ok = self.send(title, body)
-        if ok:
-            self._last_sent_ts[key] = now
-        return ok
+# Note: Email and Ntfy notifiers are now handled by MessageSender class in msg_sender.py
 
 
 # --------------------------
@@ -339,8 +177,12 @@ class NtfyNotifier:
 # --------------------------
 
 class MQTTLogger:
-    def __init__(self, config_path: str):
-        self.cfg = SystemConfig.load(config_path)
+    def __init__(self):
+        try:
+            self.cfg = SystemConfig.load(CONFIG_SENSOR_PATH)
+        except Exception as e:
+            print(f"⚠️ Failed to load system config: {e}")
+            exit(1)
 
         # active tables after schema check
         self.active_tables: Dict[str, TableConfig] = {}
@@ -363,27 +205,13 @@ class MQTTLogger:
         # Struktur pro sensor_id:
         # { "count": int, "first_ts": float, "last_ts": float }
 
-        # mailer
-        self.mailer = EmailNotifier(
-            enabled=self.cfg.mail.enabled,
-            recipient=self.cfg.mail.recipient,
-            sender=self.cfg.mail.sender,
-            subject_prefix=self.cfg.mail.subject_prefix,
-        )
-
-        # optional ntfy notifier (same throttling semantics)
+        # MessageSender for handling all notifications
         try:
-            self.ntfy = None
-            # cfg.ntfy is present in SystemConfig (default disabled)
-            if getattr(self.cfg, 'ntfy', None) is not None:
-                from config.models import NtfyConfig
-                self.ntfy = None
-                try:
-                    self.ntfy = (lambda cfg: NtfyNotifier(cfg))(self.cfg.ntfy)
-                except Exception as e:
-                    print(f"⚠️ Failed to initialize ntfy notifier: {e}")
-        except Exception:
-            self.ntfy = None
+            self.msg_sender = MessageSender(CONFIG_MESSAGE_PATH)
+        except Exception as e:
+            print(f"⚠️ Failed to initialize MessageSender: {e}")
+            self.msg_sender = None
+            exit(1)    
 
         # mqtt
         self.client = mqtt.Client(client_id="mqtt_sqlite_logger")
@@ -413,22 +241,18 @@ class MQTTLogger:
                 return tcfg
         return None
 
-    # ---------- exception mail handler ----------
+    # ---------- exception handler ----------
 
     def _handle_exception(self, sensor_id: str, topic: str, payload_str: str, exc: Exception):
+        """Handle exceptions and send notifications via MessageSender."""
         print(f"❌ {type(exc).__name__} ({sensor_id}): {exc}")
 
-        trig = self.cfg.mail.trigger_exceptions
-        if not (self.cfg.mail.enabled and trig.enabled):
+        if not self.msg_sender:
             return
 
         self.exception_counts[sensor_id] = self.exception_counts.get(sensor_id, 0) + 1
-        min_count = int(trig.min_count_before_mail or 1)
-        if self.exception_counts[sensor_id] < min_count:
-            return
 
-        preview_len = int(trig.payload_preview_chars or 0)
-        payload_preview = payload_str[:preview_len] if preview_len > 0 else ""
+        payload_preview = payload_str[:self.msg_sender.config.logfile.payload_preview_chars]
 
         body = (
             f"Exception im MQTT Logger\n\n"
@@ -445,46 +269,38 @@ class MQTTLogger:
         if payload_preview:
             body += f"\nPayload-Preview:\n{payload_preview}\n"
 
-        # pro Exception-Typ separat throttlen (praktisch!)
-        key = f"exc:{sensor_id}:{type(exc).__name__}"
-
-        sent = self.mailer.send_throttled(
-            key=key,
-            subject=f"[ERROR] {type(exc).__name__} ({sensor_id})",
-            body=body,
-            min_interval_hours=int(trig.max_repeat_every_hours),
+        trigger_key = f"EXCEPTION_{type(exc).__name__}"
+        trigger_title = f"[ERROR] {type(exc).__name__} ({sensor_id})"
+        
+        sent = self.msg_sender.send(
+            trigger_key=trigger_key,
+            trigger_title=trigger_title,
+            enabled_channels=self.msg_sender.config.info.enabled,  # Use default config channels
+            payload=body,
+            payload_full=body,
         )
+        
         if sent:
             self.exception_counts[sensor_id] = 0
-
-        # Also send an ntfy message if configured and its trigger is enabled
-        try:
-            ntfy_trig = getattr(self.cfg, 'ntfy', None).trigger_exceptions if getattr(self.cfg, 'ntfy', None) else None
-            if self.ntfy and ntfy_trig and ntfy_trig.enabled:
-                min_count_ntfy = int(ntfy_trig.min_count_before_mail or 1)
-                if self.exception_counts[sensor_id] >= min_count_ntfy:
-                    ntfy_key = f"ntfy:exc:{sensor_id}:{type(exc).__name__}"
-                    title = f"[ERROR] {type(exc).__name__} ({sensor_id})"
-                    ok = self.ntfy.send_throttled(
-                        key=ntfy_key,
-                        title=title,
-                        body=body,
-                        min_interval_hours=int(ntfy_trig.max_repeat_every_hours),
-                    )
-                    if ok:
-                        self.exception_counts[sensor_id] = 0
-        except Exception as e:
-            print(f"⚠️ ntfy notify error: {e}")
 
     # ---------- mqtt callbacks ----------
 
     def on_connect(self, client, userdata, flags, rc):
-        print(f"✅ Verbunden mit MQTT-Broker {self.cfg.mqtt.host}:{self.cfg.mqtt.port}, Statuscode: {rc}")
         client.subscribe(self.cfg.mqtt.topic)
-        print(f"📡 Subscribed auf Topic: {self.cfg.mqtt.topic}")
+        body = (f"Verbunden mit MQTT-Broker\n\n"
+                f"Broker: {self.cfg.mqtt.host}:{self.cfg.mqtt.port}\n"
+                f"Statuscode: {rc}\n"
+                f"Topic: {self.cfg.mqtt.topic}\n"
+                f"DB: {self.cfg.db_file}\n")
+        if self.msg_sender:
+            self.msg_sender.send(
+                trigger_key="MQTT_CONNECTED",
+                trigger_title="[INFO] MQTT Broker connected",
+                enabled_channels=self.msg_sender.config.info.enabled,
+                payload=body,
+            )
 
     def on_message(self, client, userdata, msg):
-        trig_exc = self.cfg.mail.trigger_exceptions
         sensor_id = self._sensor_id_from_topic(msg.topic)
         payload_str = ""
         payload_str = msg.payload.decode("utf-8", errors="replace")
@@ -492,19 +308,23 @@ class MQTTLogger:
         try:
             if not sensor_id:
                 msg_txt = f"Sensor unbekannt ({sensor_id})"
-                if trig_exc.raise_on_unknown_sensor_error:
-                    raise UnknownSensorError(msg_txt)
-                else:
-                    print(f"❌ {msg.topic}: {msg_txt}")
+                self.msg_sender.send(
+                    trigger_key=f"UNKNOWN_SENSOR_ERROR",
+                    trigger_title=self.msg_sender.config.unknown_sensor_error.title,
+                    enabled_channels=self.msg_sender.config.unknown_sensor_error.enabled,
+                    payload=f"Topic: {msg.topic}\n{msg_txt}",
+                )
                 return
         
             table = self._get_table_for_sensor(sensor_id)
             if not table:
                 msg_txt = f"Sensor unbekannt ({sensor_id})"
-                if trig_exc.raise_on_unknown_sensor_error:
-                    raise UnknownSensorError(msg_txt)
-                else:
-                    print(f"❌ {msg.topic}: {msg_txt}")
+                self.msg_sender.send(
+                    trigger_key=f"UNKNOWN_SENSOR_ERROR",
+                    trigger_title=self.msg_sender.config.unknown_sensor_error.title,
+                    enabled_channels=self.msg_sender.config.unknown_sensor_error.enabled,
+                    payload=f"Topic: {msg.topic}\n{msg_txt}",
+                )
                 return
 
             # JSON parse
@@ -512,19 +332,23 @@ class MQTTLogger:
                 payload = json.loads(payload_str)
             except json.JSONDecodeError as e:
                 msg_txt = f"Ungueltiges JSON-Format ({e})"
-                if trig_exc.raise_on_json_decode_error:
-                    raise JSONPayloadDecodeError(msg_txt) from e
-                else:
-                    print(f"❌ {msg.topic}: {msg_txt}")
+                self.msg_sender.send(
+                    trigger_key=f"JSON_DECODE_ERROR",
+                    trigger_title=self.msg_sender.config.json_decode_error.title,
+                    enabled_channels=self.msg_sender.config.json_decode_error.enabled,
+                    payload=f"Topic: {msg.topic}\n{msg_txt}",
+                )
                 return
 
             # must be dict
             if not isinstance(payload, dict):
                 msg_txt = f"Payload ist kein JSON-Objekt (type={type(payload).__name__})"
-                if trig_exc.raise_on_non_dict_payload:
-                    raise PayloadFormatError(msg_txt)
-                else:
-                    print(f"❌ {msg.topic}: {msg_txt}")
+                self.msg_sender.send(
+                    trigger_key=f"NON_DICT_PAYLOAD",
+                    trigger_title=self.msg_sender.config.non_dict_payload.title,
+                    enabled_channels=self.msg_sender.config.non_dict_payload.enabled,
+                    payload=f"Topic: {msg.topic}\n{msg_txt}",
+                )
                 return
 
             # timestamp required
@@ -532,10 +356,12 @@ class MQTTLogger:
             utms = payload.get(ts_key)
             if not utms:
                 msg_txt = f"Pflichtfeld '{ts_key}' fehlt oder ist leer"
-                if trig_exc.raise_on_missing_timestamp:
-                    raise MissingTimestampError(msg_txt)
-                else:
-                    print(f"❌ {msg.topic}: {msg_txt}")
+                self.msg_sender.send(
+                    trigger_key=f"MISSING_TIMESTAMP",
+                    trigger_title=self.msg_sender.config.missing_timestamp.title,
+                    enabled_channels=self.msg_sender.config.missing_timestamp.enabled,
+                    payload=f"Topic: {msg.topic}\n{msg_txt}",
+                )
                 return
 
             record: Dict[str, Any] = {ts_key: utms}
@@ -593,11 +419,11 @@ class MQTTLogger:
     # --------------------------
 
     def check_missing_data(self):
-        trig = self.cfg.mail.trigger_missing_data
-        if not (self.cfg.mail.enabled and trig.enabled):
+        """Check for missing MQTT data using MessageSender."""
+        if not self.msg_sender:
             return
 
-        window_s = int((trig.window_minutes or 0) * 60)
+        window_s = int((self.msg_sender.config.missing_data.window_minutes or 0) * 60)
         if window_s <= 0:
             return
 
@@ -623,29 +449,17 @@ class MQTTLogger:
                     f"DB: {self.cfg.db_file}\n"
                 )
 
-                self.mailer.send_throttled(
-                    key=f"missing:{sid}",
-                    subject=f"[ALARM] Missing MQTT data ({sid})",
-                    body=body,
-                    min_interval_hours=int(trig.max_repeat_every_hours),
+                self.msg_sender.send(
+                    trigger_key=f"MISSING_DATA_{sid}",
+                    trigger_title=f"[ALARM] Missing MQTT data ({sid})",
+                    enabled_channels=self.msg_sender.config.missing_data.enabled,
+                    payload=body,
+                    payload_full=body,
                 )
 
-                # ntfy
-                try:
-                    ntfy_trig = getattr(self.cfg, 'ntfy', None).trigger_missing_data if getattr(self.cfg, 'ntfy', None) else None
-                    if self.ntfy and ntfy_trig and ntfy_trig.enabled:
-                        self.ntfy.send_throttled(
-                            key=f"ntfy:missing:{sid}",
-                            title=f"[ALARM] Missing MQTT data ({sid})",
-                            body=body,
-                            min_interval_hours=int(ntfy_trig.max_repeat_every_hours),
-                        )
-                except Exception as e:
-                    print(f"⚠️ ntfy missing-data notify error: {e}")
-
     def check_bad_values(self):
-        trig = self.cfg.mail.trigger_bad_values
-        if not (self.cfg.mail.enabled and trig.enabled):
+        """Check for bad values using MessageSender."""
+        if not self.msg_sender:
             return
 
         for t in self.active_tables.values():
@@ -664,39 +478,23 @@ class MQTTLogger:
                 f"DB: {self.cfg.db_file}\n"
             )
 
-            sent = self.mailer.send_throttled(
-                key=f"bad:{sid}",
-                subject=f"[WARN] Bad values ({sid})",
-                body=body,
-                min_interval_hours=int(trig.max_repeat_every_hours),
+            sent = self.msg_sender.send(
+                trigger_key=f"BAD_VALUES_{sid}",
+                trigger_title=f"[WARN] Bad values ({sid})",
+                enabled_channels=self.msg_sender.config.bad_values.enabled,
+                payload=body,
+                payload_full=body,
             )
             if sent:
                 self.bad_value_events[sid] = 0
 
-            # ntfy
-            try:
-                ntfy_trig = getattr(self.cfg, 'ntfy', None).trigger_bad_values if getattr(self.cfg, 'ntfy', None) else None
-                if self.ntfy and ntfy_trig and ntfy_trig.enabled:
-                    ok = self.ntfy.send_throttled(
-                        key=f"ntfy:bad:{sid}",
-                        title=f"[WARN] Bad values ({sid})",
-                        body=body,
-                        min_interval_hours=int(ntfy_trig.max_repeat_every_hours),
-                    )
-                    if ok:
-                        self.bad_value_events[sid] = 0
-            except Exception as e:
-                print(f"⚠️ ntfy bad-values notify error: {e}")
-
     def check_db_size(self):
-        
-        trig = self.cfg.mail.trigger_db_size
-        if not (self.cfg.mail.enabled and trig.enabled):
+        """Check database size using MessageSender."""
+        if not self.msg_sender:
             return
 
-        # tolerate both names (CHECK_EVERY_HOUR vs CHECK_EVERY_HOURS) via model or fallback
-        check_hours = getattr(trig, "check_every_hours", None)           
-        if check_hours is None:
+        check_hours = self.msg_sender.config.db_size.check_every_hours
+        if check_hours is None or check_hours <= 0:
             return
 
         now = time.time()
@@ -704,67 +502,39 @@ class MQTTLogger:
             return
         self._last_db_size_check_ts = now
 
-        max_repeat_every_hours = getattr(trig, "max_repeat_every_hours")
-        if max_repeat_every_hours is None:
-            return
-
         size_b = get_db_size_bytes(self.cfg.db_file)
         size_mb = size_b / (1024 * 1024)
 
-        warn = trig.warn_mb or 0
-        crit = trig.crit_mb or 0
+        warn = self.msg_sender.config.db_size.warn_mb or 0
+        crit = self.msg_sender.config.db_size.crit_mb or 0
 
         if crit and size_mb >= crit:
             body = f"DB GROESSE KRITISCH: {size_mb:.1f} MB (CRIT={crit} MB)\nDB: {self.cfg.db_file}\n"
-            self.mailer.send_throttled(
-                key="dbsize:crit",
-                subject="[ALARM] DB size critical",
-                body=body,
-                min_interval_hours=int(max_repeat_every_hours),
+            self.msg_sender.send(
+                trigger_key="DB_SIZE_CRITICAL",
+                trigger_title="[ALARM] DB size critical",
+                enabled_channels=self.msg_sender.config.db_size.enabled,
+                payload=body,
+                payload_full=body,
             )
-
-            # ntfy
-            try:
-                ntfy_trig = getattr(self.cfg, 'ntfy', None).trigger_db_size if getattr(self.cfg, 'ntfy', None) else None
-                if self.ntfy and ntfy_trig and ntfy_trig.enabled:
-                    self.ntfy.send_throttled(
-                        key="ntfy:dbsize:crit",
-                        title="[ALARM] DB size critical",
-                        body=body,
-                        min_interval_hours=int(ntfy_trig.max_repeat_every_hours),
-                    )
-            except Exception as e:
-                print(f"⚠️ ntfy db-size notify error: {e}")
 
         elif warn and size_mb >= warn:
             body = f"DB GROESSE WARNUNG: {size_mb:.1f} MB (WARN={warn} MB)\nDB: {self.cfg.db_file}\n"
-            self.mailer.send_throttled(
-                key="dbsize:warn",
-                subject="[WARN] DB size warning",
-                body=body,
-                min_interval_hours=int(max_repeat_every_hours),
+            self.msg_sender.send(
+                trigger_key="DB_SIZE_WARNING",
+                trigger_title="[WARN] DB size warning",
+                enabled_channels=self.msg_sender.config.db_size.enabled,
+                payload=body,
+                payload_full=body,
             )
 
-            # ntfy
-            try:
-                ntfy_trig = getattr(self.cfg, 'ntfy', None).trigger_db_size if getattr(self.cfg, 'ntfy', None) else None
-                if self.ntfy and ntfy_trig and ntfy_trig.enabled:
-                    self.ntfy.send_throttled(
-                        key="ntfy:dbsize:warn",
-                        title="[WARN] DB size warning",
-                        body=body,
-                        min_interval_hours=int(ntfy_trig.max_repeat_every_hours),
-                    )
-            except Exception as e:
-                print(f"⚠️ ntfy db-size notify error: {e}")
-
     def maybe_send_info_mail(self):
-        trig = self.cfg.mail.trigger_info
-        if not (self.cfg.mail.enabled and trig.enabled):
+        """Send periodic info message using MessageSender."""
+        if not self.msg_sender:
             return
 
-        repeat_s = hours_to_seconds(getattr(trig, "repeat_every_hours", None))
-        if repeat_s is not None and self._last_info_mail_ts and (time.time() - self._last_info_mail_ts) < repeat_s:
+        repeat_s = self.msg_sender.config.max_repeat_hours * 3600  # Use max_repeat_hours from config
+        if self._last_info_mail_ts and (time.time() - self._last_info_mail_ts) < repeat_s:
             return
 
         start_time_iso = datetime.datetime.now().isoformat()
@@ -832,27 +602,13 @@ class MQTTLogger:
             f"{stats_text}\n"
         )
 
-        sent = self.mailer.send_throttled(
-            key="info:start",
-            subject="[INFO] MQTT Logger gestartet",
-            body=body,
-            min_interval_hours=int(getattr(trig, "repeat_every_hours", 24)),
+        sent = self.msg_sender.send(
+            trigger_key="INFO_PERIODIC",
+            trigger_title="[INFO] MQTT Logger gestartet",
+            enabled_channels=self.msg_sender.config.info.enabled,
+            payload=body,
+            payload_full=body,
         )
-
-        # ntfy for start info
-        try:
-            ntfy_trig = getattr(self.cfg, 'ntfy', None).trigger_info if getattr(self.cfg, 'ntfy', None) else None
-            if self.ntfy and ntfy_trig and ntfy_trig.enabled:
-                ok = self.ntfy.send_throttled(
-                    key="ntfy:info:start",
-                    title="[INFO] MQTT Logger gestartet",
-                    body=body,
-                    min_interval_hours=int(getattr(ntfy_trig, "repeat_every_hours", 24)),
-                )
-                if ok:
-                    self._last_info_mail_ts = time.time()
-        except Exception as e:
-            print(f"⚠️ ntfy info notify error: {e}")
 
         if sent:
             self._last_info_mail_ts = time.time()
@@ -888,12 +644,14 @@ class MQTTLogger:
         for tkey, msg in self.inactive_tables.items():
             warn = f"⚠️ SCHEMA WARNING (Table {tkey} / sensor_id={self.cfg.tables[tkey].sensor_id}): {msg}"
             print(warn)
-            self.mailer.send_throttled(
-                key=f"schema:{tkey}",
-                subject="[WARN] DB Schema mismatch",
-                body=f"{warn}\nDB: {self.cfg.db_file}\n",
-                min_interval_hours=24,
-            )
+            if self.msg_sender:
+                self.msg_sender.send(
+                    trigger_key=f"SCHEMA_MISMATCH_{tkey}",
+                    trigger_title="[WARN] DB Schema mismatch",
+                    enabled_channels=self.msg_sender.config.info.enabled,
+                    payload=f"{warn}\nDB: {self.cfg.db_file}\n",
+                    payload_full=f"{warn}\nDB: {self.cfg.db_file}\n",
+                )
 
         if not self.active_tables:
             print("❌ Keine aktiven Tabellen (Schema passt nicht). Abbruch.")
@@ -908,11 +666,23 @@ class MQTTLogger:
                 fields_in_order=fields,
             )
 
-        print("✅ Active sensor_ids:", ", ".join(sorted([t.sensor_id for t in self.active_tables.values()])))
-        print(f"✅ DB: {self.cfg.db_file}")
+        active_sensors = ", ".join(sorted([t.sensor_id for t in self.active_tables.values()]))
+        startup_body = (
+            f"MQTT Logger startet\n\n"
+            f"Active Sensor IDs: {active_sensors}\n"
+            f"DB: {self.cfg.db_file}\n"
+            f"Broker: {self.cfg.mqtt.host}:{self.cfg.mqtt.port}\n"
+            f"Topic: {self.cfg.mqtt.topic}\n"
+        )
+        if self.msg_sender:
+            self.msg_sender.send(
+                trigger_key="LOGGER_STARTUP",
+                trigger_title="[INFO] MQTT Logger startup",
+                enabled_channels=self.msg_sender.config.info.enabled,
+                payload=startup_body,
+            )
 
         # MQTT verbinden
-        print(f"Verbinde zu Broker {self.cfg.mqtt.host}:{self.cfg.mqtt.port} ...")
         try:
             self.client.connect(self.cfg.mqtt.host, self.cfg.mqtt.port, 60)
         except Exception as e:
@@ -924,7 +694,20 @@ class MQTTLogger:
 
         # MQTT loop
         self.client.loop_start()
-        print("🏃 MQTT-Logger laeuft. Druecke Ctrl+C zum Beenden.")
+        running_body = (
+            f"MQTT Logger laeuft und wartet auf Signale\n\n"
+            f"Broker: {self.cfg.mqtt.host}:{self.cfg.mqtt.port}\n"
+            f"DB: {self.cfg.db_file}\n"
+            f"Start: {datetime.datetime.now().isoformat()}\n\n"
+            f"Druecke Ctrl+C zum Beenden.\n"
+        )
+        if self.msg_sender:
+            self.msg_sender.send(
+                trigger_key="LOGGER_RUNNING",
+                trigger_title="[INFO] MQTT Logger running",
+                enabled_channels=self.msg_sender.config.info.enabled,
+                payload=running_body,
+            )
 
         try:
             while True:
@@ -935,25 +718,27 @@ class MQTTLogger:
                 self.maybe_send_info_mail()
 
         except KeyboardInterrupt:
-            print("\n🛑 Beende Logger (KeyboardInterrupt).")
+            shutdown_body = (
+                f"MQTT Logger Shutdown\n\n"
+                f"Reason: KeyboardInterrupt\n"
+                f"Time: {datetime.datetime.now().isoformat()}\n"
+                f"DB: {self.cfg.db_file}\n"
+            )
+            if self.msg_sender:
+                self.msg_sender.send(
+                    trigger_key="LOGGER_SHUTDOWN",
+                    trigger_title="[INFO] MQTT Logger shutdown",
+                    enabled_channels=self.msg_sender.config.info.enabled,
+                    payload=shutdown_body,
+                )
         finally:
             self.client.loop_stop()
             self.client.disconnect()
-            print("🔌 MQTT-Verbindung getrennt.")
 
 
 def main():
-    cfg_path = "config/sensor_config.json"
-    if len(sys.argv) >= 2:
-        cfg_path = sys.argv[1]
-
-    if not os.path.isfile(cfg_path):
-        print(f"❌ Config nicht gefunden: {cfg_path}")
-        print("Usage: ./mqtt_logger.py [config.json]")
-        sys.exit(2)
-
-    MQTTLogger(cfg_path).start()
-
+    logger = MQTTLogger()
+    logger.start()
 
 if __name__ == "__main__":
     main()
