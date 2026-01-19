@@ -214,7 +214,7 @@ class MQTTLogger:
             exit(1)    
 
         # mqtt
-        self.client = mqtt.Client(client_id="mqtt_sqlite_logger")
+        self.client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION_2, client_id="mqtt_sqlite_logger")
         self.client.on_connect = self.on_connect
         self.client.on_message = self.on_message
 
@@ -285,13 +285,15 @@ class MQTTLogger:
 
     # ---------- mqtt callbacks ----------
 
-    def on_connect(self, client, userdata, flags, rc):
+    def on_connect(self, client, userdata, connect_flags, reason_code, properties):
         client.subscribe(self.cfg.mqtt.topic)
-        body = (f"Verbunden mit MQTT-Broker\n\n"
-                f"Broker: {self.cfg.mqtt.host}:{self.cfg.mqtt.port}\n"
-                f"Statuscode: {rc}\n"
-                f"Topic: {self.cfg.mqtt.topic}\n"
-                f"DB: {self.cfg.db_file}\n")
+        body = (
+            f"Verbunden mit MQTT-Broker\n\n"
+            f"Broker: {self.cfg.mqtt.host}:{self.cfg.mqtt.port}\n"
+            f"Statuscode: {reason_code}\n"
+            f"Topic: {self.cfg.mqtt.topic}\n"
+            f"DB: {self.cfg.db_file}\n"
+        )
         if self.msg_sender:
             self.msg_sender.send(
                 trigger_key="MQTT_CONNECTED",
@@ -300,10 +302,10 @@ class MQTTLogger:
                 payload=body,
             )
 
-    def on_message(self, client, userdata, msg):
-        sensor_id = self._sensor_id_from_topic(msg.topic)
+    def on_message(self, client, userdata, message):
+        sensor_id = self._sensor_id_from_topic(message.topic)
         payload_str = ""
-        payload_str = msg.payload.decode("utf-8", errors="replace")
+        payload_str = message.payload.decode("utf-8", errors="replace")
 
         try:
             if not sensor_id:
@@ -312,7 +314,7 @@ class MQTTLogger:
                     trigger_key=f"UNKNOWN_SENSOR_ERROR",
                     trigger_title=self.msg_sender.config.unknown_sensor_error.title,
                     enabled_channels=self.msg_sender.config.unknown_sensor_error.enabled,
-                    payload=f"Topic: {msg.topic}\n{msg_txt}",
+                    payload=f"Topic: {message.topic}\n{msg_txt}",
                 )
                 return
         
@@ -323,7 +325,7 @@ class MQTTLogger:
                     trigger_key=f"UNKNOWN_SENSOR_ERROR",
                     trigger_title=self.msg_sender.config.unknown_sensor_error.title,
                     enabled_channels=self.msg_sender.config.unknown_sensor_error.enabled,
-                    payload=f"Topic: {msg.topic}\n{msg_txt}",
+                    payload=f"Topic: {message.topic}\n{msg_txt}",
                 )
                 return
 
@@ -336,7 +338,7 @@ class MQTTLogger:
                     trigger_key=f"JSON_DECODE_ERROR",
                     trigger_title=self.msg_sender.config.json_decode_error.title,
                     enabled_channels=self.msg_sender.config.json_decode_error.enabled,
-                    payload=f"Topic: {msg.topic}\n{msg_txt}",
+                    payload=f"Topic: {message.topic}\n{msg_txt}",
                 )
                 return
 
@@ -347,7 +349,7 @@ class MQTTLogger:
                     trigger_key=f"NON_DICT_PAYLOAD",
                     trigger_title=self.msg_sender.config.non_dict_payload.title,
                     enabled_channels=self.msg_sender.config.non_dict_payload.enabled,
-                    payload=f"Topic: {msg.topic}\n{msg_txt}",
+                    payload=f"Topic: {message.topic}\n{msg_txt}",
                 )
                 return
 
@@ -360,7 +362,7 @@ class MQTTLogger:
                     trigger_key=f"MISSING_TIMESTAMP",
                     trigger_title=self.msg_sender.config.missing_timestamp.title,
                     enabled_channels=self.msg_sender.config.missing_timestamp.enabled,
-                    payload=f"Topic: {msg.topic}\n{msg_txt}",
+                    payload=f"Topic: {message.topic}\n{msg_txt}",
                 )
                 return
 
@@ -408,11 +410,11 @@ class MQTTLogger:
                 self.bad_value_events[sensor_id] = self.bad_value_events.get(sensor_id, 0) + bad_hit
 
         except MQTTLoggerError as e:
-            self._handle_exception(sensor_id, msg.topic, payload_str, e)
+            self._handle_exception(sensor_id, message.topic, payload_str, e)
 
         except Exception as e:
             # unexpected -> treat as internal bug
-            self._handle_exception(sensor_id, msg.topic, payload_str, InternalLoggerError(repr(e)))
+            self._handle_exception(sensor_id, message.topic, payload_str, InternalLoggerError(repr(e)))
 
     # --------------------------
     # Periodic checks
