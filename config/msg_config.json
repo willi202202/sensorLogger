@@ -6,7 +6,7 @@
     "SERVER": "https://ntfy.sh",
     "TOPIC": "raspiroman",
     "TOKEN": "",
-    "PRIORITY": 5,
+    "PRIORITY": 2,
     "PAYLOAD_PREVIEW_CHARS": 180
   },
   "MAIL": {
@@ -20,47 +20,47 @@
     "PAYLOAD_PREVIEW_CHARS": 180
   },
   "LOGFILE": {
-    "ENABLED": true,
+    "ENABLED": false,
     "PATH": "/var/log/mqtt_weather_logger/alarms.log",
     "PAYLOAD_PREVIEW_CHARS": 1800
   },
   "MSG_TRIGGER": {
     "INFO": {
-      "ENABLED": {"NTFY": false, "MAIL": false, "STDOUT": true, "LOGFILE": false},
+      "ENABLED": {"NTFY": true, "MAIL": true, "STDOUT": true, "LOGFILE": false},
       "TITLE": "Daly Info"
     },
     "MISSING_DATA": {
-      "ENABLED": {"NTFY": false, "MAIL": false, "STDOUT": true, "LOGFILE": false},
+      "ENABLED": {"NTFY": true, "MAIL": true, "STDOUT": true, "LOGFILE": false},
       "TITLE": "Alarm: Missing Data",
       "WINDOW_MINUTES": 30
     },
     "DB_SIZE": {
-      "ENABLED": {"NTFY": false, "MAIL": false, "STDOUT": true, "LOGFILE": false},
+      "ENABLED": {"NTFY": true, "MAIL": true, "STDOUT": true, "LOGFILE": false},
       "TITLE": "Alarm: DB Size",
       "CHECK_EVERY_HOURS": 24,
       "WARN_MB": 500,
       "CRIT_MB": 800
     },
     "BAD_VALUES": {
-      "ENABLED": {"NTFY": false, "MAIL": false, "STDOUT": true, "LOGFILE": false},
+      "ENABLED": {"NTFY": true, "MAIL": true, "STDOUT": true, "LOGFILE": false},
       "TITLE": "Alarm: Bad Values",
       "WINDOW_MINUTES": 30,
       "MAX_REPEAT_EVERY_HOURS": 6
     },
     "NON_DICT_PAYLOAD": {
-      "ENABLED": {"NTFY": false, "MAIL": false, "STDOUT": true, "LOGFILE": false},
+      "ENABLED": {"NTFY": true, "MAIL": true, "STDOUT": true, "LOGFILE": false},
       "TITLE": "Alarm: Payload Not Dict"
     },
     "MISSING_TIMESTAMP": {
-      "ENABLED": {"NTFY": false, "MAIL": false, "STDOUT": true, "LOGFILE": false},
+      "ENABLED": {"NTFY": true, "MAIL": true, "STDOUT": true, "LOGFILE": false},
       "TITLE": "Alarm: Missing Timestamp"
     },
     "JSON_DECODE_ERROR": {
-      "ENABLED": {"NTFY": false, "MAIL": false, "STDOUT": true, "LOGFILE": false},
+      "ENABLED": {"NTFY": true, "MAIL": true, "STDOUT": true, "LOGFILE": false},
       "TITLE": "Alarm: JSON Decode Error"
     },
     "UNKNOWN_SENSOR_ERROR": {
-      "ENABLED": {"NTFY": false, "MAIL": false, "STDOUT": true, "LOGFILE": false},
+      "ENABLED": {"NTFY": true, "MAIL": true, "STDOUT": true, "LOGFILE": false},
       "TITLE": "Alarm: Unknown Sensor"
     }
   }

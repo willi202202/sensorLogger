@@ -10,13 +10,15 @@ MessageSender class for sending alerts via multiple channels:
 import json
 import logging
 import smtplib
+import urllib.request
+import urllib.error
+import ssl
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Dict, Optional, Any
 from dataclasses import asdict
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-#import requests
 
 from config.models import MessageConfig, EnabledChannels
 
@@ -175,13 +177,20 @@ class MessageSender:
             # Truncate payload for preview
             preview = payload[:self.config.ntfy.payload_preview_chars]
             
-            response = requests.post(
+            # Bypass SSL verification (ntfy.sh sometimes has SSL issues)
+            ssl_context = ssl.create_default_context()
+            ssl_context.check_hostname = False
+            ssl_context.verify_mode = ssl.CERT_NONE
+            
+            req = urllib.request.Request(
                 url,
-                data=preview,
+                data=preview.encode("utf-8"),
                 headers=headers,
-                timeout=10
+                method="POST"
             )
-            response.raise_for_status()
+            
+            with urllib.request.urlopen(req, context=ssl_context, timeout=10) as response:
+                response.read()
             
         except Exception as e:
             self._log_error(f"Error sending ntfy notification: {e}")
