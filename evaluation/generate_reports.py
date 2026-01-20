@@ -75,7 +75,7 @@ def generate_html_table_statistics(repo, output_dir, filename) -> None:
             stats[table_alias] = f"Error getting statistics: {e}"
 
     # Erzeuge HTML
-    html_parts = ["<html><head><title>Table Statistics</title></head><body>"]
+    html_parts = ['<html><head><meta charset="UTF-8"><title>Table Statistics</title></head><body>']
     html_parts.append("<h1>Table Statistics</h1>")
     for table_alias, stats_text in stats.items():
         html_parts.append(f"<h2>{infos[table_alias]} ({table_alias})</h2>")
