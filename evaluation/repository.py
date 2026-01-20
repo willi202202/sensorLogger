@@ -771,6 +771,28 @@ class SensorRepository:
                             lines.append(f"{rank:2d}. {gap_min:.0f} min ({gap_td.days}d {gap_td.seconds//3600}h {(gap_td.seconds%3600)//60}m) — {start_ts} -> {end_ts}")
                 except Exception as e2:
                     lines.append(f"[red]Error computing top gaps: {e2}[/red]")
+
+                # Verteilung der Datenlücken
+                gap_min = intervals_series.astype(float)
+
+                bins = [0, 1, 2, 5, 10, 15, 30, 60, 180, float("inf")]
+                labels = ["<=1", "1-2", "2-5", "5-10", "10-15", "15-30", "30-60", "1-3h", ">3h"]
+
+                cats = pd.cut(gap_min, bins=bins, labels=labels, right=True, include_lowest=True)
+                summary = (
+                    pd.DataFrame({"gap_min": gap_min, "bucket": cats})
+                    .groupby("bucket", observed=False)["gap_min"]
+                    .agg(count="count", total_min="sum", max_min="max")
+                    .reset_index()
+                )
+
+                lines.append("📊 Gap distribution:")
+                for _, r in summary.iterrows():
+                    if r["count"] == 0:
+                        continue
+                    total_td = timedelta(minutes=float(r["total_min"]))
+                    lines.append(f" - {r['bucket']:>5}: {int(r['count']):4d} gaps, total {total_td}, max {r['max_min']:.0f} min")
+
         except Exception as e:
             lines.append(f"[red]Error computing interval statistics: {e}[/red]")
 
