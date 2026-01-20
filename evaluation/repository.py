@@ -756,7 +756,7 @@ class SensorRepository:
                 TOP_N = 10
 
                 # observed gap in minutes (float)
-                g_all = intervals_series.astype(float)
+                g_all = intervals.astype(float)
 
                 # Normalfall explizit ausklammern
                 g = g_all[g_all >= NORMAL_MIN]
@@ -826,6 +826,12 @@ class SensorRepository:
                             f"{rank:2d}. {gap_min:.0f} min ({td}) — "
                             f"{start_ts} -> {end_ts}"
                         )
+                    
+                    # Gesamtsummary
+                    lines.append(
+                        f"Summary: {len(g)} gaps ≥ {NORMAL_MIN:.0f} min, "
+                        f"worst {g.max():.0f} min, "
+                        f"total downtime {timedelta(minutes=float(g.sum()))}")
 
         except Exception as e:
             lines.append(f"[red]Error computing interval statistics: {e}[/red]")
