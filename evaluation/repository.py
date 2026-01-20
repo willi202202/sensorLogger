@@ -769,7 +769,6 @@ class SensorRepository:
                     # Bins (minutenbasiert)
                     bins = [
                         NORMAL_MIN,
-                        20,
                         30,
                         60,
                         120,
@@ -781,8 +780,7 @@ class SensorRepository:
                     ]
 
                     labels = [
-                        "10-20 min",
-                        "20-30 min",
+                        "15-30 min",
                         "30-60 min",
                         "1-2 h",
                         "2-4 h",
