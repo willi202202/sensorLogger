@@ -752,15 +752,15 @@ class SensorRepository:
                 lines.append(f"📊 Interval Stats (min/median/std/max): {min_int:.2f}/{median_int:.2f}/{stddev_int:.2f}/{max_int:.2f} min")
 
                 # Verteilung der Datenlücken
-                NORMAL_MIN = 10.0   # alles darunter = Normalbetrieb
-                TOP_N = 10
+                NORMAL_MIN = 15.0   # alles darunter = Normalbetrieb
+                TOP_N = 20
 
                 # observed gap in minutes (float)
                 g_all = intervals.astype(float)
 
                 # Normalfall explizit ausklammern
                 g = g_all[g_all >= NORMAL_MIN]
-
+                lines.append("-" * 60)
                 lines.append(f"📊 Data gaps ≥ {NORMAL_MIN:.0f} min (normal operation excluded):")
 
                 if g.empty:
@@ -814,7 +814,7 @@ class SensorRepository:
                         )
 
                     # Top-N groesste Gaps
-                    lines.append("")
+                    lines.append("-" * 60)
                     lines.append(f"🚨 Top {TOP_N} largest gaps:")
 
                     top = g.sort_values(ascending=False).head(TOP_N)
@@ -828,6 +828,7 @@ class SensorRepository:
                         )
                     
                     # Gesamtsummary
+                    lines.append("-" * 60)
                     lines.append(
                         f"Summary: {len(g)} gaps ≥ {NORMAL_MIN:.0f} min, "
                         f"worst {g.max():.0f} min, "
