@@ -751,47 +751,81 @@ class SensorRepository:
                 max_int = max(intervals_list)
                 lines.append(f"📊 Interval Stats (min/median/std/max): {min_int:.2f}/{median_int:.2f}/{stddev_int:.2f}/{max_int:.2f} min")
 
-                # Längste Datenlücke (Top N)
-                try:
-                    top_n = 10
-                    intervals_series = intervals  # pandas Series indexed like df_ts
-                    if intervals_series.empty:
-                        lines.append("ℹ️ No intervals to compute gaps.")
-                    else:
-                        top = intervals_series.sort_values(ascending=False).head(top_n)
-                        lines.append("📊 Top data gaps (minutes) — start -> end:")
-                        for rank, (idx, gap_min) in enumerate(top.items(), start=1):
-                            # gap at index idx corresponds to df_ts[idx-1] -> df_ts[idx]
-                            if idx == 0:
-                                start_ts = df_ts["timestamp"].iloc[0]
-                            else:
-                                start_ts = df_ts["timestamp"].iloc[idx - 1]
-                            end_ts = df_ts["timestamp"].iloc[idx]
-                            gap_td = timedelta(seconds=gap_min * 60)
-                            lines.append(f"{rank:2d}. {gap_min:.0f} min ({gap_td.days}d {gap_td.seconds//3600}h {(gap_td.seconds%3600)//60}m) — {start_ts} -> {end_ts}")
-                except Exception as e2:
-                    lines.append(f"[red]Error computing top gaps: {e2}[/red]")
-
                 # Verteilung der Datenlücken
-                gap_min = intervals_series.astype(float)
+                NORMAL_MIN = 10.0   # alles darunter = Normalbetrieb
+                TOP_N = 10
 
-                bins = [0, 1, 2, 5, 10, 15, 30, 60, 180, float("inf")]
-                labels = ["<=1", "1-2", "2-5", "5-10", "10-15", "15-30", "30-60", "1-3h", ">3h"]
+                # observed gap in minutes (float)
+                g_all = intervals_series.astype(float)
 
-                cats = pd.cut(gap_min, bins=bins, labels=labels, right=True, include_lowest=True)
-                summary = (
-                    pd.DataFrame({"gap_min": gap_min, "bucket": cats})
-                    .groupby("bucket", observed=False)["gap_min"]
-                    .agg(count="count", total_min="sum", max_min="max")
-                    .reset_index()
-                )
+                # Normalfall explizit ausklammern
+                g = g_all[g_all >= NORMAL_MIN]
 
-                lines.append("📊 Gap distribution:")
-                for _, r in summary.iterrows():
-                    if r["count"] == 0:
-                        continue
-                    total_td = timedelta(minutes=float(r["total_min"]))
-                    lines.append(f" - {r['bucket']:>5}: {int(r['count']):4d} gaps, total {total_td}, max {r['max_min']:.0f} min")
+                lines.append(f"📊 Data gaps ≥ {NORMAL_MIN:.0f} min (normal operation excluded):")
+
+                if g.empty:
+                    lines.append(" - none")
+                else:
+                    # Bins (minutenbasiert)
+                    bins = [
+                        NORMAL_MIN,
+                        20,
+                        30,
+                        60,
+                        120,
+                        240,
+                        480,
+                        1440,
+                        2880,
+                        float("inf"),
+                    ]
+
+                    labels = [
+                        "10-20 min",
+                        "20-30 min",
+                        "30-60 min",
+                        "1-2 h",
+                        "2-4 h",
+                        "4-8 h",
+                        "8-24 h",
+                        "24-48 h",
+                        ">48 h",
+                    ]
+
+                    cats = pd.cut(g, bins=bins, labels=labels, right=False)
+
+                    summary = (
+                        pd.DataFrame({"gap_min": g, "bucket": cats})
+                        .groupby("bucket", observed=False)["gap_min"]
+                        .agg(count="count", total_min="sum", max_min="max")
+                        .reset_index()
+                    )
+
+                    # Verteilung
+                    for _, r in summary.iterrows():
+                        if int(r["count"]) == 0:
+                            continue
+                        total_td = timedelta(minutes=float(r["total_min"]))
+                        lines.append(
+                            f" - {r['bucket']:>8}: "
+                            f"{int(r['count']):4d} gaps, "
+                            f"total {total_td}, "
+                            f"max {r['max_min']:.0f} min"
+                        )
+
+                    # Top-N groesste Gaps
+                    lines.append("")
+                    lines.append(f"🚨 Top {TOP_N} largest gaps:")
+
+                    top = g.sort_values(ascending=False).head(TOP_N)
+                    for rank, (idx, gap_min) in enumerate(top.items(), start=1):
+                        start_ts = df_ts["timestamp"].iloc[max(idx - 1, 0)]
+                        end_ts   = df_ts["timestamp"].iloc[idx]
+                        td = timedelta(minutes=float(gap_min))
+                        lines.append(
+                            f"{rank:2d}. {gap_min:.0f} min ({td}) — "
+                            f"{start_ts} -> {end_ts}"
+                        )
 
         except Exception as e:
             lines.append(f"[red]Error computing interval statistics: {e}[/red]")
