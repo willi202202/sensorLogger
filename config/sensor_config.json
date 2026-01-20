@@ -4,7 +4,7 @@
     "HOST": "127.0.0.1",
     "PORT": 1883,
     "TOPIC": "mobilealerts/+/json",
-    "COMPACT_LOG_ENABLED": true
+    "COMPACT_LOG_ENABLED": false
   },
   "TABLE": {
     "measurements_w": {
@@ -83,7 +83,7 @@
         "temperature1": {
           "name": "temperature1",
           "alias": "Outdoor_Temperature",
-          "field_type": "tuple_float",
+          "field_type": "float",
           "invalid_map": { "-9999": null, "-9999.0": null },
           "unit": "°C",
           "round": 1,
@@ -95,7 +95,7 @@
         "humidity1": {
           "name": "humidity1",
           "alias": "Outdoor_Humidity",
-          "field_type": "tuple_float",
+          "field_type": "float",
           "invalid_map": { "-9999": null, "-9999.0": null, "127": null },
           "unit": "%RH",
           "round": 0,
@@ -105,7 +105,7 @@
         "temperature2": {
           "name": "temperature2",
           "alias": "Garden_Temperature",
-          "field_type": "tuple_float",
+          "field_type": "float",
           "invalid_map": { "-9999": null, "-9999.0": null },
           "unit": "°C",
           "round": 1,
@@ -117,7 +117,7 @@
         "humidity2": {
           "name": "humidity2",
           "alias": "Garden_Humidity",
-          "field_type": "tuple_float",
+          "field_type": "float",
           "invalid_map": { "-9999": null, "-9999.0": null, "127": null },
           "unit": "%RH",
           "round": 0,
@@ -127,7 +127,7 @@
         "temperature3": {
           "name": "temperature3",
           "alias": "Basement_Temperature",
-          "field_type": "tuple_float",
+          "field_type": "float",
           "invalid_map": { "-9999": null, "-9999.0": null },
           "unit": "°C",
           "round": 1,
@@ -139,7 +139,7 @@
         "humidity3": {
           "name": "humidity3",
           "alias": "Basement_Humidity",
-          "field_type": "tuple_float",
+          "field_type": "float",
           "invalid_map": { "-9999": null, "-9999.0": null, "127": null },
           "unit": "%RH",
           "round": 0,
@@ -149,7 +149,7 @@
         "temperatureIN": {
           "name": "temperatureIN",
           "alias": "Indoor_Temperature",
-          "field_type": "tuple_float",
+          "field_type": "float",
           "invalid_map": { "-9999": null, "-9999.0": null },
           "unit": "°C",
           "round": 1,
@@ -161,7 +161,7 @@
         "humidityIN": {
           "name": "humidityIN",
           "alias": "Indoor_Humidity",
-          "field_type": "tuple_float",
+          "field_type": "float",
           "invalid_map": { "-9999": null, "-9999.0": null, "127": null },
           "unit": "%RH",
           "round": 0,

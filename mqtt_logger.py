@@ -388,6 +388,8 @@ class MQTTLogger:
             compact = bool(getattr(self.cfg.mqtt, "compact_log_enabled", True))
             if compact:
                 print(f"✅ {sensor_id} -> {table.name} | ts={utms}")
+            else:
+                print(f"✅ {sensor_id} -> {table.name} | record={record}")
 
             # state update
             now = time.time()

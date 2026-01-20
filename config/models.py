@@ -83,7 +83,7 @@ class Sensor:
     invalid_map: Dict[str, Any] = field(default_factory=dict)
 
     def __repr__(self) -> str:
-        return f"Sensor(key={self.key}, alias={self.alias}, type={self.field_type}, unit={self.unit})"
+        return f"Sensor(key={self.key}, alias={self.alias}, type={self.field_type}, unit={self.unit}, round={self.round}, limits={self.limits}, warn={self.warn}, alarm={self.alarm}, color={self.color}, invalid_map={self.invalid_map})"
 
     @staticmethod
     def from_dict(key: str, d: Dict[str, Any]) -> "Sensor":
@@ -119,21 +119,11 @@ class Sensor:
         # 3) Type conversion
         t = (self.field_type or "string").lower()
 
-        
+        # Take first element of tuple/list for numeric types
+        if raw is not None and isinstance(raw, (list, tuple)) and len(raw) > 0:
+            raw = raw[0]
 
-        if t in ("tuple_float", "tuple_number"):
-            try:
-                val = float(raw[0])
-            except Exception:
-                return None
-            if self.round is not None:
-                try:
-                    val = round(val, int(self.round))
-                except Exception:
-                    pass
-            return val
-
-        if t in ("float", "number"):
+        if t in ("float", "double", "number"):
             try:
                 val = float(raw)
             except Exception:
@@ -570,7 +560,7 @@ if __name__ == "__main__":
     if th:
         s = th.get_sensor("temperature1")
         print("Sensor:", s)
-        print("sanitize -9999.0 ->", s.sanitize_value(-9999.0))
+        print("sanitize -9999.0 ->", s.sanitize_value("-9999.0"))
         print("sanitize '21.37' ->", s.sanitize_value("21.37"))
 
     print("\n" + "=" * 60)
