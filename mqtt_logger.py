@@ -376,6 +376,7 @@ class MQTTLogger:
 
             for skey, sensor in table.sensors.items():
                 raw = payload.get(skey)
+                #print(f"Debug: sensor field '{skey}' raw value: {raw!r} raw typ {type(raw).__name__}")
                 value, is_good = sensor.sanitize_value(raw)
                 record[skey] = value
                 if not is_good:

@@ -104,10 +104,16 @@ class Sensor:
         # ---- 0) None -----------------------------------------------------------
         if raw is None:
             return mark_bad(None)
+        
+        # ---- 2) normalize list/tuple payloads ---------------------------------
+        # Take first element of tuple/list for numeric types
+        if isinstance(raw, (list, tuple)) and len(raw) > 0:
+            raw = raw[0]
+        #print("Debug: first element:", raw, " type:", type(raw).__name__)
 
         # ---- 1) invalid_map (string key compare) ------------------------------
         key = str(raw).strip()
-        print("sanitize raw:", raw, "key:", key, " type:", self.field_type, " invalid_map:", self.invalid_map)
+        #print("sanitize raw:", raw, "key:", key, " type:", self.field_type, " invalid_map:", self.invalid_map)
         if key in self.invalid_map:
             raw = self.invalid_map[key]
             # If mapping leads to None => invalid
@@ -119,12 +125,7 @@ class Sensor:
             mapped_good = False
         else:
             mapped_good = True
-
-        # ---- 2) normalize list/tuple payloads ---------------------------------
-        # Take first element of tuple/list for numeric types
-        if raw is isinstance(raw, (list, tuple)) and len(raw) > 0:
-            raw = raw[0]
-
+        
         # ---- 3) type conversion ------------------------------------------------
         t = (self.field_type or "string").lower()
 
@@ -584,7 +585,7 @@ if __name__ == "__main__":
         print("sanitize 'none' ->", s.sanitize_value("none"))
         print("sanitize '1.2.3' ->", s.sanitize_value("1.2.3"))
         print("sanitize 'text' ->", s.sanitize_value("text"))
-        print("sanitize '-27' ->", s.sanitize_value("-27"))
+        print("sanitize '[21.4, 21.4]' ->", s.sanitize_value("[21.4, 21.4]"))
 
     print("\n" + "=" * 60)
     print("MESSAGE CONFIG TEST")
