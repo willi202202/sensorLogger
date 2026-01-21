@@ -26,16 +26,6 @@ def _to_tuple2(value: Any) -> Tuple[Optional[float], Optional[float]]:
         return (None if a is None else float(a), None if b is None else float(b))
     return (None, None)
 
-
-def _as_str_key(v: Any) -> str:
-    """
-    Keys in invalid_map are strings in JSON. We compare against the raw input as string.
-    """
-    #print("value str:", v)
-    if v is None:
-        return "null"
-    return str(v).strip()
-
 def _parse_bool(v: Any) -> Optional[int]:
     """
     Returns 0/1 or None.
@@ -106,9 +96,13 @@ class Sensor:
         Applies invalid_map, converts types, rounding.
         Returns value ready for DB insert (None allowed).
         """
-        #print("sanitize raw:", raw, "type:", self.field_type)
+        
         # 1) invalid_map mapping (compare using string key)
-        k = _as_str_key(raw)
+        if raw is None:
+            k = "null"
+        else:
+            k = str(raw).strip()
+        print("sanitize raw:", raw, "k:", k, " type:", self.field_type, " invalid_map:", self.invalid_map)
         if k in self.invalid_map:
             raw = self.invalid_map[k]
 
@@ -561,7 +555,14 @@ if __name__ == "__main__":
         s = th.get_sensor("temperature1")
         print("Sensor:", s)
         print("sanitize -9999.0 ->", s.sanitize_value("-9999.0"))
+        print("sanitize '27.66' ->", s.sanitize_value("27.66"))
         print("sanitize '21.37' ->", s.sanitize_value("21.37"))
+        s = th.get_sensor("humidity1")
+        print("Sensor:", s)
+        print("sanitize '27' ->", s.sanitize_value("27"))
+        print("sanitize '27.6' ->", s.sanitize_value("27.6"))
+        print("sanitize '127' ->", s.sanitize_value("127"))
+        print("sanitize 'none' ->", s.sanitize_value("none"))
 
     print("\n" + "=" * 60)
     print("MESSAGE CONFIG TEST")

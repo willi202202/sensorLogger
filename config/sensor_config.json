@@ -95,8 +95,8 @@
         "humidity1": {
           "name": "humidity1",
           "alias": "Outdoor_Humidity",
-          "field_type": "float",
-          "invalid_map": { "-9999": null, "-9999.0": null, "127": null },
+          "field_type": "int",
+          "invalid_map": {"127": 100 },
           "unit": "%RH",
           "round": 0,
           "limits": [0, 100],
@@ -117,8 +117,8 @@
         "humidity2": {
           "name": "humidity2",
           "alias": "Garden_Humidity",
-          "field_type": "float",
-          "invalid_map": { "-9999": null, "-9999.0": null, "127": null },
+          "field_type": "int",
+          "invalid_map": {"127": 100 },
           "unit": "%RH",
           "round": 0,
           "limits": [0, 100],
@@ -139,8 +139,8 @@
         "humidity3": {
           "name": "humidity3",
           "alias": "Basement_Humidity",
-          "field_type": "float",
-          "invalid_map": { "-9999": null, "-9999.0": null, "127": null },
+          "field_type": "int",
+          "invalid_map": {"127": 100 },
           "unit": "%RH",
           "round": 0,
           "limits": [0, 100],
@@ -161,8 +161,8 @@
         "humidityIN": {
           "name": "humidityIN",
           "alias": "Indoor_Humidity",
-          "field_type": "float",
-          "invalid_map": { "-9999": null, "-9999.0": null, "127": null },
+          "field_type": "int",
+          "invalid_map": {"127": 100 },
           "unit": "%RH",
           "round": 0,
           "limits": [0, 100],

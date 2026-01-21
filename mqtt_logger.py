@@ -16,6 +16,9 @@
 #
 # Windows: Mail wird simuliert (print)
 # Linux: /usr/bin/mail wird genutzt
+#
+# To monitor mails on Linux, use:
+# mosquitto_sub -h 127.0.0.1 -p 1883 -t 'mobilealerts/+/json'
 
 from __future__ import annotations
 
