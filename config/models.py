@@ -26,30 +26,31 @@ def _to_tuple2(value: Any) -> Tuple[Optional[float], Optional[float]]:
         return (None if a is None else float(a), None if b is None else float(b))
     return (None, None)
 
-def _parse_bool(v: Any) -> Optional[int]:
+def _parse_bool(v: Any) -> Tuple[Optional[int], bool]:
     """
-    Returns 0/1 or None.
+    Returns (value, is_good) where:
+    - value: 0/1 or None
+    - is_good: True if input was valid (could parse as bool)
     Accepts True/False, 0/1, "true"/"false", "0"/"1".
     """
-    #print("value bool:", v)
     if v is None:
-        return None
+        return (None, False)
     if isinstance(v, bool):
-        return 1 if v else 0
+        return (1 if v else 0, True)
     if isinstance(v, (int, float)):
         if v == 0:
-            return 0
+            return (0, True)
         if v == 1:
-            return 1
-        # allow any nonzero? I'd rather be strict:
-        return None
+            return (1, True)
+        # invalid numeric value for bool
+        return (None, False)
     if isinstance(v, str):
         s = v.strip().lower()
         if s in ("true", "1", "yes", "y", "on", "ok"):
-            return 1
+            return (1, True)
         if s in ("false", "0", "no", "n", "off", "low"):
-            return 0
-    return None
+            return (0, True)
+    return (None, False)
 
 
 # ---------------------------
@@ -91,61 +92,79 @@ class Sensor:
             invalid_map=d.get("invalid_map", {}) or {},
         )
 
-    def sanitize_value(self, raw: Any) -> Any:
+    def sanitize_value(self, raw: Any) -> Tuple[Any, bool]:
         """
-        Applies invalid_map, converts types, rounding.
-        Returns value ready for DB insert (None allowed).
+        Apply invalid_map, convert to target type, and round.
+        Returns (value, is_good) where value may be None.
         """
-        
-        # 1) invalid_map mapping (compare using string key)
+        # ---- helpers -----------------------------------------------------------
+        def mark_bad(value: Any = None) -> Tuple[Any, bool]:
+            return (value, False)
+
+        # ---- 0) None -----------------------------------------------------------
         if raw is None:
-            k = "null"
+            return mark_bad(None)
+
+        # ---- 1) invalid_map (string key compare) ------------------------------
+        key = str(raw).strip()
+        print("sanitize raw:", raw, "key:", key, " type:", self.field_type, " invalid_map:", self.invalid_map)
+        if key in self.invalid_map:
+            raw = self.invalid_map[key]
+            # If mapping leads to None => invalid
+            if raw is None:
+                return mark_bad(None)
+            # Otherwise: value exists; you can decide if "mapped" counts as good.
+            # Here we treat mapped replacements as good:
+            # (If you want "mapped always bad", set mapped_good=False.)
+            mapped_good = False
         else:
-            k = str(raw).strip()
-        print("sanitize raw:", raw, "k:", k, " type:", self.field_type, " invalid_map:", self.invalid_map)
-        if k in self.invalid_map:
-            raw = self.invalid_map[k]
+            mapped_good = True
 
-        # 2) If mapping already produced None -> done
-        if raw is None:
-            return None
-
-        # 3) Type conversion
-        t = (self.field_type or "string").lower()
-
+        # ---- 2) normalize list/tuple payloads ---------------------------------
         # Take first element of tuple/list for numeric types
-        if raw is not None and isinstance(raw, (list, tuple)) and len(raw) > 0:
+        if raw is isinstance(raw, (list, tuple)) and len(raw) > 0:
             raw = raw[0]
+
+        # ---- 3) type conversion ------------------------------------------------
+        t = (self.field_type or "string").lower()
 
         if t in ("float", "double", "number"):
             try:
                 val = float(raw)
             except Exception:
-                return None
+                return mark_bad(None)
+
             if self.round is not None:
                 try:
                     val = round(val, int(self.round))
                 except Exception:
-                    pass
-            return val
+                    # value is still usable, but rounding config is bad
+                    return (val, False)
+
+            return (val, mapped_good)
 
         if t in ("int", "integer"):
             try:
-                return int(float(raw))
+                # allows "12.0" -> 12
+                val = int(float(raw))
             except Exception:
-                return None
+                return mark_bad(None)
+            return (val, mapped_good)
 
         if t in ("bool", "boolean"):
-            b = _parse_bool(raw)
-            return b  # 0/1/None
+            b, ok = _parse_bool(raw)
+            return (b, mapped_good and ok)
 
         # default: string
         try:
-            s = str(raw)
+            s = str(raw).strip()
         except Exception:
-            return None
-        s = s.strip()
-        return s if s != "" else None
+            return mark_bad(None)
+
+        if s == "":
+            return mark_bad(None)
+
+        return (s, mapped_good)
 
     def is_outside(self, value: Any, rng: Tuple[Optional[float], Optional[float]]) -> bool:
         """
@@ -563,6 +582,9 @@ if __name__ == "__main__":
         print("sanitize '27.6' ->", s.sanitize_value("27.6"))
         print("sanitize '127' ->", s.sanitize_value("127"))
         print("sanitize 'none' ->", s.sanitize_value("none"))
+        print("sanitize '1.2.3' ->", s.sanitize_value("1.2.3"))
+        print("sanitize 'text' ->", s.sanitize_value("text"))
+        print("sanitize '-27' ->", s.sanitize_value("-27"))
 
     print("\n" + "=" * 60)
     print("MESSAGE CONFIG TEST")

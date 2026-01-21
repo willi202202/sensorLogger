@@ -376,13 +376,12 @@ class MQTTLogger:
 
             for skey, sensor in table.sensors.items():
                 raw = payload.get(skey)
+                value, is_good = sensor.sanitize_value(raw)
+                record[skey] = value
+                if not is_good:
+                    bad_hit += 1
 
-                if raw is not None and sensor.invalid_map:
-                    raw_str = str(raw).strip()
-                    if raw_str in sensor.invalid_map and sensor.invalid_map[raw_str] is None:
-                        bad_hit += 1
-
-                record[skey] = sensor.sanitize_value(raw)
+                
 
             # Insert
             self.dbs[table.key].insert(record)
