@@ -17,3 +17,7 @@ sudo systemctl start mobilealerts.service
 # 4. Logger Status prüfen.
 echo "Prüfe den Status des Loggers (sollte 'running' anzeigen):"
 sudo systemctl status mobilealerts.service
+
+# 5. Live-Logs des Services anzeigen.
+echo "Zeige Live-Logs (Strg+C zum Beenden):"
+sudo journalctl -u mobilealerts.service -n 100 -f

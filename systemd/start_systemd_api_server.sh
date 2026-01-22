@@ -17,3 +17,7 @@ sudo systemctl start api_server.service
 # 4. Logger Status prüfen.
 echo "Prüfe den Status des Loggers (sollte 'running' anzeigen):"
 sudo systemctl status api_server.service
+
+# 5. Live-Logs des Services anzeigen.
+echo "Zeige Live-Logs (Strg+C zum Beenden):"
+sudo journalctl -u api_server.service -n 100 -f
