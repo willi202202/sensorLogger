@@ -8,8 +8,8 @@ DEST_LNK="/etc/nginx/sites-enabled/"
 echo "==> Backup + Install"
 sudo install -m 0644 -b -S ".bak.$(date +%F_%H%M%S)" "$SRC" "$DST"
 
+sudo rm  /etc/nginx/sites-enabled/index.conf
 sudo ln -s "$DST" "$DEST_LNK"
-sudo rm /etc/nginx/sites-enabled/default
 
 echo "==> Test + Reload NGINX"
 sudo nginx -t
