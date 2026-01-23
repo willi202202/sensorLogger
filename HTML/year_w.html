@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <title>Wetterstation W (YEAR)</title>
+    <style>
+        body {
+            font-family: system-ui, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f3f3f3;
+            text-align: center;
+        }
+
+        h1 {
+            margin-bottom: 5px;
+        }
+
+        #container {
+            max-width: 1100px;
+            margin: auto;
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+        }
+
+        #status-image {
+            max-width: 100%;
+            border: 1px solid #ccc;
+            border-radius: 10px;
+            margin-bottom: 25px;
+        }
+
+        #main-image {
+            max-width: 100%;
+            max-height: 70vh;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+        }
+
+        #caption {
+            margin-top: 10px;
+            font-size: 0.9rem;
+            color: #555;
+        }
+
+        #controls {
+            margin-top: 15px;
+            margin-bottom: 15px; /* damit etwas Abstand zum Plotbild ist */
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            align-items: center;
+        }
+
+        button {
+            padding: 8px 16px;
+            border-radius: 6px;
+            border: 1px solid #aaa;
+            background: #eee;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #ddd;
+        }
+
+        button:disabled {
+            opacity: 0.4;
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <h1>Wetterstation Chappelihof 24</h1>
+        <p>Plotübersicht W (YEAR)</p>
+
+        <!-- Status Übersicht oben -->
+        <img id="status-image" src="" alt="Status Tabelle">
+
+        <!-- 👇 HIER: Buttons und Index zwischen den Bildern -->
+        <div id="controls">
+            <button id="prev-btn" onclick="prevImage()">&laquo; Zurück</button>
+            <span id="index-info"></span>
+            <button id="next-btn" onclick="nextImage()">Weiter &raquo;</button>
+        </div>
+
+        <!-- Plot Slideshow darunter -->
+        <img id="main-image" src="" alt="Plot Bild">
+        <div id="caption"></div>
+    </div>
+
+    <script>
+        const basePath = "../log/reports/year_w/";
+        const cacheBust = Date.now();   // 🔥 Cache Busting
+        let images = [];
+        let currentIndex = 0;
+
+        // JSON laden (mit Cache Busting)
+        fetch(basePath + "images.json?v=" + cacheBust, { cache: "no-store" })
+            .then(response => response.json())
+            .then(data => {
+                // Status-Bild mit Cache Busting
+                document.getElementById("status-image").src =
+                    basePath + data.status_image + "?v=" + cacheBust;
+
+                // Plots mit Cache Busting
+                images = data.plots.map(name =>
+                    basePath + name + "?v=" + cacheBust
+                );
+
+                if (images.length === 0) {
+                    document.getElementById("caption").textContent = "Keine Plots gefunden.";
+                    document.getElementById("index-info").textContent = "";
+                    return;
+                }
+
+                showImage(0);
+            })
+            .catch(err => {
+                document.getElementById("caption").textContent =
+                    "Fehler beim Laden der Plots.";
+                console.error(err);
+            });
+
+        function showImage(index) {
+            if (images.length === 0) return;
+
+            currentIndex = Math.max(0, Math.min(index, images.length - 1));
+
+            const img = images[currentIndex];
+            document.getElementById("main-image").src = img;
+
+            document.getElementById("caption").textContent = img.replace(basePath, "");
+            document.getElementById("index-info").textContent =
+                `Bild ${currentIndex + 1} von ${images.length}`;
+
+            document.getElementById("prev-btn").disabled = (currentIndex === 0);
+            document.getElementById("next-btn").disabled = (currentIndex === images.length - 1);
+        }
+
+        function nextImage() { showImage(currentIndex + 1); }
+        function prevImage() { showImage(currentIndex - 1); }
+
+        // Pfeiltasten
+        document.addEventListener("keydown", function (e) {
+            if (e.key === "ArrowRight") nextImage();
+            if (e.key === "ArrowLeft") prevImage();
+        });
+    </script>
+</body>
+</html>

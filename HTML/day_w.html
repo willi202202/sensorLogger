@@ -2,7 +2,7 @@
 <html lang="de">
 <head>
     <meta charset="UTF-8">
-    <title>Wetterstation (YEAR)</title>
+    <title>Wetterstation W (DAY)</title>
     <style>
         body {
             font-family: system-ui, sans-serif;
@@ -74,7 +74,7 @@
 <body>
     <div id="container">
         <h1>Wetterstation Chappelihof 24</h1>
-        <p>Plotübersicht YEAR</p>
+        <p>Plotübersicht W (DAY)</p>
 
         <!-- Status Übersicht oben -->
         <img id="status-image" src="" alt="Status Tabelle">
@@ -90,9 +90,8 @@
         <img id="main-image" src="" alt="Plot Bild">
         <div id="caption"></div>
     </div>
-
     <script>
-        const basePath = "../log/reports/year/";
+        const basePath = "../log/reports/day_w/";
         const cacheBust = Date.now();   // 🔥 Cache Busting
         let images = [];
         let currentIndex = 0;

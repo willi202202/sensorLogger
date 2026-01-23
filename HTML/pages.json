@@ -13,20 +13,36 @@
       "file": "weather/table_statistics.html"
     },
     {
-      "title": "Day Dashboard",
-      "file": "weather/day.html"
+      "title": "Day TH Dashboard",
+      "file": "weather/day_th.html"
     },
     {
-      "title": "Week Dashboard",
-      "file": "weather/week.html"
+      "title": "Week TH Dashboard",
+      "file": "weather/week_th.html"
     },
     {
-      "title": "Month WeatherDashboard",
-      "file": "weather/month.html"
+      "title": "Month TH Dashboard",
+      "file": "weather/month_th.html"
     },
     {
-      "title": "Year Weather Dashboard",
-      "file": "weather/year.html"
+      "title": "Year TH Dashboard",
+      "file": "weather/year_th.html"
+    },
+    {
+      "title": "Day W Dashboard",
+      "file": "weather/day_w.html"
+    },
+    {
+      "title": "Week W Dashboard",
+      "file": "weather/week_w.html"
+    },
+    {
+      "title": "Month W Dashboard",
+      "file": "weather/month_w.html"
+    },
+    {
+      "title": "Year W Dashboard",
+      "file": "weather/year_w.html"
     }
   ]
 }

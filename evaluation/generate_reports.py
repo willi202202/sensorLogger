@@ -155,12 +155,12 @@ def generate_reports() -> None:
     # ------------------------------------------------------------------
     generate_html_table_statistics(repo, HTML_DIR, FILENAME_TABLE_STATISTICS)
 
-    day_dir = REPORT_DIR / "day"
-    week_dir = REPORT_DIR / "week"
-    month_dir = REPORT_DIR / "month"
-    year_dir = REPORT_DIR / "year"
+    day_th_dir = REPORT_DIR / "day_th"
+    week_th_dir = REPORT_DIR / "week_th"
+    month_th_dir = REPORT_DIR / "month_th"
+    year_th_dir = REPORT_DIR / "year_th"
 
-    for d in (day_dir, week_dir, month_dir, year_dir):
+    for d in (day_th_dir, week_th_dir, month_th_dir, year_th_dir):
         _ensure_dir(d)
 
     # DAY Plots
@@ -168,18 +168,18 @@ def generate_reports() -> None:
     #print("Erzeuge DAY-Reports ...")
     repo.multiplot_last_sensor_values("th",
         ["Indoor_Temperature", "Outdoor_Temperature", "Garden_Temperature", "Basement_Temperature",
-         "Indoor_Humidity", "Outdoor_Humidity", "Basement_Humidity", "Battery_Status"],
-        filename=day_dir / "status.png",
+         "Indoor_Humidity", "Outdoor_Humidity", "Garden_Humidity", "Basement_Humidity", "Battery_Status"],
+        filename=day_th_dir / "status.png",
         title="Current Sensor Values",
         show=show,
     )
 
     repo.multiplot_sensor_values_describe("th",
         ["Indoor_Temperature", "Outdoor_Temperature", "Garden_Temperature", "Basement_Temperature",
-         "Indoor_Humidity", "Outdoor_Humidity", "Basement_Humidity", "Battery_Status"],
+         "Indoor_Humidity", "Outdoor_Humidity", "Garden_Humidity", "Basement_Humidity", "Battery_Status"],
         th_last_minus_24h,
         th_last_dt,
-        filename=day_dir / "00_describe.png",
+        filename=day_th_dir / "00_describe.png",
         title="Sensor Values Description - Last 24 Hours",
         show=show,
     )
@@ -188,7 +188,7 @@ def generate_reports() -> None:
         "Indoor_Temperature",
         th_last_minus_24h,
         th_last_dt,
-        filename=day_dir / "01_Indoor_Temperature_last_minus_24h.png",
+        filename=day_th_dir / "01_Indoor_Temperature_last_minus_24h.png",
         title="Indoor Temperature - Last 24 Hours",
         show=show,
     )
@@ -197,7 +197,7 @@ def generate_reports() -> None:
         "Outdoor_Temperature",
         th_last_minus_24h,
         th_last_dt,
-        filename=day_dir / "02_Outdoor_Temperature_last_minus_24h.png",
+        filename=day_th_dir / "02_Outdoor_Temperature_last_minus_24h.png",
         title="Outdoor Temperature - Last 24 Hours",
         show=show,
     )
@@ -206,7 +206,7 @@ def generate_reports() -> None:
         "Garden_Temperature",
         th_last_minus_24h,
         th_last_dt,
-        filename=day_dir / "03_Garden_Temperature_last_minus_24h.png",
+        filename=day_th_dir / "03_Garden_Temperature_last_minus_24h.png",
         title="Garden Temperature - Last 24 Hours",
         show=show,
     )
@@ -215,7 +215,7 @@ def generate_reports() -> None:
         "Basement_Temperature",
         th_last_minus_24h,
         th_last_dt,
-        filename=day_dir / "04_Basement_Temperature_last_minus_24h.png",
+        filename=day_th_dir / "04_Basement_Temperature_last_minus_24h.png",
         title="Basement Temperature - Last 24 Hours",
         show=show,
     )
@@ -224,24 +224,24 @@ def generate_reports() -> None:
         ["Indoor_Temperature", "Outdoor_Temperature", "Garden_Temperature", "Basement_Temperature"],
         th_last_minus_24h,
         th_last_dt,
-        filename=day_dir / "05_Temperatures_last_minus_24h.png",
+        filename=day_th_dir / "05_Temperatures_last_minus_24h.png",
         title="Temperatures - Last 24 Hours",
         show=show,
     )
 
-    generate_image_json(day_dir, output_json="images.json", status_image="status.png")
+    generate_image_json(day_th_dir, output_json="images.json", status_image="status.png")
 
     # WEEK Plots
     show = False
     #print("Erzeuge WEEK-Reports ...")
-    shutil.copy2(day_dir / "status.png", week_dir / "status.png")
+    shutil.copy2(day_th_dir / "status.png", week_th_dir / "status.png")
 
     repo.multiplot_sensor_values_describe("th",
-        ["Indoor_Temperature", "Outdoor_Temperature", "Garden_Temperature",
-         "Indoor_Humidity", "Outdoor_Humidity", "Garden_Humidity", "Battery_Status"],
+        ["Indoor_Temperature", "Outdoor_Temperature", "Garden_Temperature", "Basement_Temperature",
+         "Indoor_Humidity", "Outdoor_Humidity", "Garden_Humidity", "Basement_Humidity", "Battery_Status"],
         th_last_minus_1w,
         th_last_dt,
-        filename=week_dir / "00_describe.png",
+        filename=week_th_dir / "00_describe.png",
         title="Sensor Values Description - Last Week",
         show=show,
     )
@@ -250,7 +250,7 @@ def generate_reports() -> None:
         "Indoor_Temperature",
         th_last_minus_1w,
         th_last_dt,
-        filename=week_dir / "01_Indoor_Temperature_last_minus_1w.png",
+        filename=week_th_dir / "01_Indoor_Temperature_last_minus_1w.png",
         title="Indoor Temperature - Last Week",
         show=show,
     )
@@ -259,7 +259,7 @@ def generate_reports() -> None:
         "Outdoor_Temperature",
         th_last_minus_1w,
         th_last_dt,
-        filename=week_dir / "02_Outdoor_Temperature_last_minus_1w.png",
+        filename=week_th_dir / "02_Outdoor_Temperature_last_minus_1w.png",
         title="Outdoor Temperature - Last Week",
         show=show,
     )
@@ -268,7 +268,7 @@ def generate_reports() -> None:
         "Garden_Temperature",
         th_last_minus_1w,
         th_last_dt,
-        filename=week_dir / "03_Garden_Temperature_last_minus_1w.png",
+        filename=week_th_dir / "03_Garden_Temperature_last_minus_1w.png",
         title="Garden Temperature - Last Week",
         show=show,
     )
@@ -277,7 +277,7 @@ def generate_reports() -> None:
         "Basement_Temperature",
         th_last_minus_1w,
         th_last_dt,
-        filename=week_dir / "04_Basement_Temperature_last_minus_1w.png",
+        filename=week_th_dir / "04_Basement_Temperature_last_minus_1w.png",
         title="Basement Temperature - Last Week",
         show=show,
     )
@@ -286,24 +286,24 @@ def generate_reports() -> None:
         ["Indoor_Temperature", "Outdoor_Temperature", "Garden_Temperature", "Basement_Temperature"],
         th_last_minus_1w,
         th_last_dt,
-        filename=week_dir / "05_Temperatures_last_minus_1w.png",
+        filename=week_th_dir / "05_Temperatures_last_minus_1w.png",
         title="Temperatures - Last Week",
         show=show,
     )
 
-    generate_image_json(week_dir, output_json="images.json", status_image="status.png")
+    generate_image_json(week_th_dir, output_json="images.json", status_image="status.png")
 
     # MONTH Plots
     show = False
     #print("Erzeuge MONTH-Reports ...")
-    shutil.copy2(day_dir / "status.png", month_dir / "status.png")
+    shutil.copy2(day_th_dir / "status.png", month_th_dir / "status.png")
 
     repo.multiplot_sensor_values_describe("th",
         ["Indoor_Temperature", "Outdoor_Temperature", "Garden_Temperature", "Basement_Temperature",
-         "Indoor_Humidity", "Outdoor_Humidity", "Basement_Humidity", "Battery_Status"],
+         "Indoor_Humidity", "Outdoor_Humidity", "Garden_Humidity", "Basement_Humidity", "Battery_Status"],
         th_last_minus_1Mt,
         th_last_dt,
-        filename=month_dir / "00_describe.png",
+        filename=month_th_dir / "00_describe.png",
         title="Sensor Values Description - Last Month",
         show=show,
     )
@@ -312,7 +312,7 @@ def generate_reports() -> None:
         "Indoor_Temperature",
         th_last_minus_1Mt,
         th_last_dt,
-        filename=month_dir / "01_Indoor_Temperature_last_minus_1Mt.png",
+        filename=month_th_dir / "01_Indoor_Temperature_last_minus_1Mt.png",
         title="Indoor Temperature - Last Month",
         show=show,
     )
@@ -321,7 +321,7 @@ def generate_reports() -> None:
         "Outdoor_Temperature",
         th_last_minus_1Mt,
         th_last_dt,
-        filename=month_dir / "02_Outdoor_Temperature_last_minus_1Mt.png",
+        filename=month_th_dir / "02_Outdoor_Temperature_last_minus_1Mt.png",
         title="Outdoor Temperature - Last Month",
         show=show,
     )
@@ -330,7 +330,7 @@ def generate_reports() -> None:
         "Garden_Temperature",
         th_last_minus_1Mt,
         th_last_dt,
-        filename=month_dir / "03_Garden_Temperature_last_minus_1Mt.png",
+        filename=month_th_dir / "03_Garden_Temperature_last_minus_1Mt.png",
         title="Garden Temperature - Last Month",
         show=show,
     )
@@ -339,7 +339,7 @@ def generate_reports() -> None:
         "Basement_Temperature",
         th_last_minus_1Mt,
         th_last_dt,
-        filename=month_dir / "04_Basement_Temperature_last_minus_1Mt.png",
+        filename=month_th_dir / "04_Basement_Temperature_last_minus_1Mt.png",
         title="Basement Temperature - Last Month",
         show=show,
     )
@@ -348,24 +348,24 @@ def generate_reports() -> None:
         ["Indoor_Temperature", "Outdoor_Temperature", "Garden_Temperature", "Basement_Temperature"],
         th_last_minus_1Mt,
         th_last_dt,
-        filename=month_dir / "05_Temperatures_last_minus_1Mt.png",
+        filename=month_th_dir / "05_Temperatures_last_minus_1Mt.png",
         title="Temperatures - Last Month",
         show=show,
     )
 
-    generate_image_json(month_dir, output_json="images.json", status_image="status.png")
+    generate_image_json(month_th_dir, output_json="images.json", status_image="status.png")
 
     # YEAR Plots
     show = False
     #print("Erzeuge YEAR-Reports ...")
-    shutil.copy2(day_dir / "status.png", year_dir / "status.png")
+    shutil.copy2(day_th_dir / "status.png", year_th_dir / "status.png")
 
     repo.multiplot_sensor_values_describe("th",
         ["Indoor_Temperature", "Outdoor_Temperature", "Garden_Temperature", "Basement_Temperature",
-         "Indoor_Humidity", "Outdoor_Humidity", "Basement_Humidity", "Battery_Status"],
+         "Indoor_Humidity", "Outdoor_Humidity", "Garden_Humidity", "Basement_Humidity", "Battery_Status"],
         th_last_minus_1y,
         th_last_dt,
-        filename=year_dir / "00_describe.png",
+        filename=year_th_dir / "00_describe.png",
         title="Sensor Values Description - Last Year",
         show=show,
     )
@@ -374,7 +374,7 @@ def generate_reports() -> None:
         "Indoor_Temperature",
         th_last_minus_1y,
         th_last_dt,
-        filename=year_dir / "01_Indoor_Temperature_last_minus_1y.png",
+        filename=year_th_dir / "01_Indoor_Temperature_last_minus_1y.png",
         title="Indoor Temperature - Last Year",
         show=show,
     )
@@ -383,7 +383,7 @@ def generate_reports() -> None:
         "Outdoor_Temperature",
         th_last_minus_1y,
         th_last_dt,
-        filename=year_dir / "02_Outdoor_Temperature_last_minus_1y.png",
+        filename=year_th_dir / "02_Outdoor_Temperature_last_minus_1y.png",
         title="Outdoor Temperature - Last Year",
         show=show,
     )
@@ -392,7 +392,7 @@ def generate_reports() -> None:
         "Garden_Temperature",
         th_last_minus_1y,
         th_last_dt,
-        filename=year_dir / "03_Garden_Temperature_last_minus_1y.png",
+        filename=year_th_dir / "03_Garden_Temperature_last_minus_1y.png",
         title="Garden Temperature - Last Year",
         show=show,
     )
@@ -401,7 +401,7 @@ def generate_reports() -> None:
         "Basement_Temperature",
         th_last_minus_1y,
         th_last_dt,
-        filename=year_dir / "04_Basement_Temperature_last_minus_1y.png",
+        filename=year_th_dir / "04_Basement_Temperature_last_minus_1y.png",
         title="Basement Temperature - Last Year",
         show=show,
     )
@@ -410,13 +410,13 @@ def generate_reports() -> None:
         ["Indoor_Temperature", "Outdoor_Temperature", "Garden_Temperature", "Basement_Temperature"],
         th_last_minus_1y,
         th_last_dt,
-        filename=year_dir / "05_Temperatures_last_minus_1y.png",
+        filename=year_th_dir / "05_Temperatures_last_minus_1y.png",
         title="Temperatures - Last Year",
         show=show,
     )
 
 
-    generate_image_json(year_dir, output_json="images.json", status_image="status.png")
+    generate_image_json(year_th_dir, output_json="images.json", status_image="status.png")
 
     # ------------------------------------------------------------------
     _last_regen = datetime.now()
