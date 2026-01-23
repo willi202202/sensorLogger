@@ -1,5 +1,5 @@
 {
-  "SUBJECT_PREFIX": "[MQTT-WEATHER-LOGGER]",
+  "SUBJECT_PREFIX": "[WEATHER-LOGGER]",
   "MAX_REPEAT_HOURS": 48,
   "NTFY": {
     "ENABLED": true,
@@ -27,7 +27,7 @@
   "MSG_TRIGGER": {
     "INFO": {
       "ENABLED": {"NTFY": true, "MAIL": true, "STDOUT": true, "LOGFILE": false},
-      "TITLE": "Daly Info"
+      "TITLE": "Info"
     },
     "MISSING_DATA": {
       "ENABLED": {"NTFY": true, "MAIL": true, "STDOUT": true, "LOGFILE": false},
@@ -44,8 +44,7 @@
     "BAD_VALUES": {
       "ENABLED": {"NTFY": true, "MAIL": true, "STDOUT": true, "LOGFILE": false},
       "TITLE": "Alarm: Bad Values",
-      "WINDOW_MINUTES": 30,
-      "MAX_REPEAT_EVERY_HOURS": 6
+      "WINDOW_MINUTES": 30
     },
     "NON_DICT_PAYLOAD": {
       "ENABLED": {"NTFY": true, "MAIL": true, "STDOUT": true, "LOGFILE": false},

@@ -106,6 +106,17 @@ def publish_unknown_topic_prefix_exception(client: mqtt.Client, base_payload: di
     client.publish(topic, payload)
 
 
+def publish_bad_values(client: mqtt.Client, base_payload: dict):
+    # Fehlerhafte Werte -> Bad-Values Alarm
+    # temperature1 auf -9999 setzen (invalid_map wird auf NULL gemappt)
+    p = dict(base_payload)
+    p["temperature1"] = [-9999, 3.8]  # Bad value
+    topic = f"{TOPIC_PREFIX}/{SENSOR_TH}/json"
+    payload = json.dumps(p)
+    print(f"> [FAULT] bad_values (temperature1=-9999): {topic}")
+    client.publish(topic, payload)
+
+
 def main():
     print(f"🔌 Verbinde zu MQTT Broker {BROKER} ...")
     client = mqtt.Client()
@@ -143,6 +154,9 @@ def main():
                 
             if counter == 5*offset:
                 publish_unknown_topic_prefix_exception(client, w)
+
+            if counter == 6*offset:
+                publish_bad_values(client, th)
 
         if counter >= 7*offset:
             counter = 0

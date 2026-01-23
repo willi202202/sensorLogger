@@ -265,17 +265,15 @@ class MqttBrokerConfig:
         )
 
 
-@dataclass
 class SystemConfig:
-    db_file: str
-    mqtt: MqttBrokerConfig
-    mail: MailConfig
-    ntfy: NtfyConfig
-    tables: Dict[str, TableConfig]
-
-    @staticmethod
-    def load(path: str) -> "SystemConfig":
-        with open(path, "r", encoding="utf-8") as f:
+    def __init__(self, config_path: str):
+        """
+        Initialize SystemConfig by loading from file.
+        
+        Args:
+            config_path: Path to sensor_config.json
+        """
+        with open(config_path, "r", encoding="utf-8") as f:
             cfg = json.load(f)
 
         tables = {
@@ -283,13 +281,16 @@ class SystemConfig:
             for tk, td in (cfg.get("TABLE", {}) or {}).items()
         }
 
-        return SystemConfig(
-            db_file=cfg.get("DB_FILE", ""),
-            mqtt=MqttBrokerConfig.from_dict(cfg.get("MQTT_BROKER", {}) or {}),
-            mail=MailConfig.from_dict(cfg.get("MAIL", {}) or {}),
-            ntfy=NtfyConfig.from_dict(cfg.get("NTFY", {}) or {}),
-            tables=tables,
-        )
+        self.db_file: str = cfg.get("DB_FILE", "")
+        self.mqtt: MqttBrokerConfig = MqttBrokerConfig.from_dict(cfg.get("MQTT_BROKER", {}) or {})
+        self.mail: MailConfig = MailConfig.from_dict(cfg.get("MAIL", {}) or {})
+        self.ntfy: NtfyConfig = NtfyConfig.from_dict(cfg.get("NTFY", {}) or {})
+        self.tables: Dict[str, TableConfig] = tables
+
+    @staticmethod
+    def load(path: str) -> "SystemConfig":
+        """Load SystemConfig from file (static method for compatibility)."""
+        return SystemConfig(path)
     
     def get_table_by_key(self, table_key: str) -> Optional[TableConfig]:
         return self.tables.get(table_key)
@@ -462,7 +463,6 @@ class DbSizeTrigger(MessageTrigger):
 @dataclass
 class BadValuesTrigger(MessageTrigger):
     window_minutes: int = 30
-    max_repeat_every_hours: int = 6
 
     @staticmethod
     def from_dict(d: Dict[str, Any]) -> "BadValuesTrigger":
@@ -470,7 +470,6 @@ class BadValuesTrigger(MessageTrigger):
             enabled=EnabledChannels.from_dict(d.get("ENABLED", {})),
             title=d.get("TITLE", ""),
             window_minutes=int(d.get("WINDOW_MINUTES", 30)),
-            max_repeat_every_hours=int(d.get("MAX_REPEAT_EVERY_HOURS", 6)),
         )
 
 

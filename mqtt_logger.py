@@ -180,12 +180,9 @@ class DatabaseManager:
 # --------------------------
 
 class MQTTLogger:
-    def __init__(self):
-        try:
-            self.cfg = SystemConfig.load(CONFIG_SENSOR_PATH)
-        except Exception as e:
-            print(f"⚠️ Failed to load system config: {e}")
-            exit(1)
+    def __init__(self, msg_sender: MessageSender, cfg: SystemConfig):
+        self.msg_sender = msg_sender
+        self.cfg = cfg
 
         # active tables after schema check
         self.active_tables: Dict[str, TableConfig] = {}
@@ -194,8 +191,9 @@ class MQTTLogger:
         # per sensor-id last message time
         self.last_message_time: Dict[str, float] = {}
 
-        # for bad-values mail
+        # for bad-values: track count and first occurrence time per sensor
         self.bad_value_events: Dict[str, int] = {}
+        self.bad_value_first_ts: Dict[str, float] = {}  # timestamp when bad-value window started
 
         # per sensor exception counts (for MIN_COUNT_BEFORE_MAIL)
         self.exception_counts: Dict[str, int] = {}
@@ -206,15 +204,7 @@ class MQTTLogger:
         # per sensor stats
         self.rx_stats: Dict[str, Dict[str, float]] = {}
         # Struktur pro sensor_id:
-        # { "count": int, "first_ts": float, "last_ts": float }
-
-        # MessageSender for handling all notifications
-        try:
-            self.msg_sender = MessageSender(CONFIG_MESSAGE_PATH)
-        except Exception as e:
-            print(f"⚠️ Failed to initialize MessageSender: {e}")
-            self.msg_sender = None
-            exit(1)    
+        # { "count": int, "first_ts": float, "last_ts": float }    
 
         # mqtt
         self.client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id="mqtt_sqlite_logger")
@@ -248,17 +238,13 @@ class MQTTLogger:
 
     def _handle_exception(self, sensor_id: str, topic: str, payload_str: str, exc: Exception):
         """Handle exceptions and send notifications via MessageSender."""
-        print(f"❌ {type(exc).__name__} ({sensor_id}): {exc}")
-
-        if not self.msg_sender:
-            return
 
         self.exception_counts[sensor_id] = self.exception_counts.get(sensor_id, 0) + 1
 
         payload_preview = payload_str[:self.msg_sender.config.logfile.payload_preview_chars]
 
         body = (
-            f"Exception im MQTT Logger\n\n"
+            f"Exception im MQTT Logger\n"
             f"Exception: {type(exc).__name__}\n"
             f"Sensor-ID: {sensor_id}\n"
             f"Topic: {topic}\n"
@@ -286,24 +272,17 @@ class MQTTLogger:
         if sent:
             self.exception_counts[sensor_id] = 0
 
+    def _handle_fatal_exception(self, sensor_id: str, topic: str, exc: Exception, exit_code: int = 1):
+        """Handle fatal exception, send notification with delay, and exit gracefully."""
+        self._handle_exception(sensor_id, topic, "", exc)
+        # Give async operations (mail, ntfy) time to complete
+        time.sleep(0.5)
+        sys.exit(exit_code)
+
     # ---------- mqtt callbacks ----------
 
     def on_connect(self, client, userdata, connect_flags, reason_code, properties):
         client.subscribe(self.cfg.mqtt.topic)
-        body = (
-            f"Verbunden mit MQTT-Broker\n\n"
-            f"Broker: {self.cfg.mqtt.host}:{self.cfg.mqtt.port}\n"
-            f"Statuscode: {reason_code}\n"
-            f"Topic: {self.cfg.mqtt.topic}\n"
-            f"DB: {self.cfg.db_file}\n"
-        )
-        if self.msg_sender:
-            self.msg_sender.send(
-                trigger_key="MQTT_CONNECTED",
-                trigger_title="[INFO] MQTT Broker connected",
-                enabled_channels=self.msg_sender.config.info.enabled,
-                payload=body,
-            )
 
     def on_message(self, client, userdata, message):
         sensor_id = self._sensor_id_from_topic(message.topic)
@@ -412,6 +391,8 @@ class MQTTLogger:
                 st["last_ts"] = now
 
             if bad_hit > 0:
+                if sensor_id not in self.bad_value_events:
+                    self.bad_value_first_ts[sensor_id] = now
                 self.bad_value_events[sensor_id] = self.bad_value_events.get(sensor_id, 0) + bad_hit
 
         except MQTTLoggerError as e:
@@ -427,9 +408,6 @@ class MQTTLogger:
 
     def check_missing_data(self):
         """Check for missing MQTT data using MessageSender."""
-        if not self.msg_sender:
-            return
-
         window_s = int((self.msg_sender.config.missing_data.window_minutes or 0) * 60)
         if window_s <= 0:
             return
@@ -447,7 +425,7 @@ class MQTTLogger:
                 last_ts = datetime.datetime.fromtimestamp(last).isoformat()
 
                 body = (
-                    f"SEIT {hours} STUNDEN KEINE NEUEN MQTT-DATEN!\n\n"
+                    f"Seit {hours} Stunden keine neuen Daten!\n"
                     f"Sensor-ID: {sid}\n"
                     f"Tabelle: {t.name}\n"
                     f"Letzter Empfang: {last_ts}\n"
@@ -458,16 +436,18 @@ class MQTTLogger:
 
                 self.msg_sender.send(
                     trigger_key=f"MISSING_DATA_{sid}",
-                    trigger_title=f"[ALARM] Missing MQTT data ({sid})",
+                    trigger_title=self.msg_sender.config.missing_data.title,
                     enabled_channels=self.msg_sender.config.missing_data.enabled,
                     payload=body,
-                    payload_full=body,
                 )
 
     def check_bad_values(self):
-        """Check for bad values using MessageSender."""
-        if not self.msg_sender:
-            return
+        """Check for bad values using MessageSender, respecting WINDOW_MINUTES."""
+        window_s = int((self.msg_sender.config.bad_values.window_minutes or 0) * 60)
+        if window_s <= 0:
+            window_s = 30 * 60  # default to 30 minutes
+
+        now = time.time()
 
         for t in self.active_tables.values():
             sid = t.sensor_id
@@ -475,11 +455,18 @@ class MQTTLogger:
             if count <= 0:
                 continue
 
+            first_ts = self.bad_value_first_ts.get(sid, now)
+            window_elapsed = now - first_ts
+
+            # Only send if window has elapsed
+            if window_elapsed < window_s:
+                continue
+
             body = (
                 f"BAD VALUES erkannt (invalid_map -> NULL)!\n\n"
                 f"Sensor-ID: {sid}\n"
                 f"Tabelle: {t.name}\n"
-                f"Anzahl bad-field hits seit letztem Mail: {count}\n"
+                f"Anzahl bad-field hits in {int(window_s/60)} min Fenster: {count}\n"
                 f"Broker: {self.cfg.mqtt.host}:{self.cfg.mqtt.port}\n"
                 f"Topic: {self.cfg.mqtt.topic}\n"
                 f"DB: {self.cfg.db_file}\n"
@@ -487,19 +474,17 @@ class MQTTLogger:
 
             sent = self.msg_sender.send(
                 trigger_key=f"BAD_VALUES_{sid}",
-                trigger_title=f"[WARN] Bad values ({sid})",
+                trigger_title=self.msg_sender.config.bad_values.title,
                 enabled_channels=self.msg_sender.config.bad_values.enabled,
                 payload=body,
                 payload_full=body,
             )
             if sent:
                 self.bad_value_events[sid] = 0
+                self.bad_value_first_ts[sid] = 0.0
 
     def check_db_size(self):
         """Check database size using MessageSender."""
-        if not self.msg_sender:
-            return
-
         check_hours = self.msg_sender.config.db_size.check_every_hours
         if check_hours is None or check_hours <= 0:
             return
@@ -516,30 +501,32 @@ class MQTTLogger:
         crit = self.msg_sender.config.db_size.crit_mb or 0
 
         if crit and size_mb >= crit:
-            body = f"DB GROESSE KRITISCH: {size_mb:.1f} MB (CRIT={crit} MB)\nDB: {self.cfg.db_file}\n"
+            body = (
+                f"DB Groesse Kritisch: {size_mb:.1f} MB\n"
+                f"BD Kritische Schwelle: {crit} MB)\n"
+                f"DB: {self.cfg.db_file}\n"
+            )
             self.msg_sender.send(
                 trigger_key="DB_SIZE_CRITICAL",
-                trigger_title="[ALARM] DB size critical",
+                trigger_title=self.msg_sender.config.db_size.title,
                 enabled_channels=self.msg_sender.config.db_size.enabled,
                 payload=body,
-                payload_full=body,
             )
-
         elif warn and size_mb >= warn:
-            body = f"DB GROESSE WARNUNG: {size_mb:.1f} MB (WARN={warn} MB)\nDB: {self.cfg.db_file}\n"
+            body = (
+                f"DB Groesse Warnung: {size_mb:.1f} MB\n"
+                f"BD Warn Schwelle: {warn} MB)\n"
+                f"DB: {self.cfg.db_file}\n"
+            )
             self.msg_sender.send(
                 trigger_key="DB_SIZE_WARNING",
-                trigger_title="[WARN] DB size warning",
+                trigger_title=self.msg_sender.config.db_size.title,
                 enabled_channels=self.msg_sender.config.db_size.enabled,
                 payload=body,
-                payload_full=body,
             )
 
     def maybe_send_info_mail(self):
         """Send periodic info message using MessageSender."""
-        if not self.msg_sender:
-            return
-
         repeat_s = self.msg_sender.config.max_repeat_hours * 3600  # Use max_repeat_hours from config
         if self._last_info_mail_ts and (time.time() - self._last_info_mail_ts) < repeat_s:
             return
@@ -600,21 +587,20 @@ class MQTTLogger:
         stats_text = "\n".join(lines)
 
         body = (
-            f"MQTT-SQLite-Logger laeuft.\n"
+            f"Logger laeuft.\n"
             f"Zeit: {start_time_iso}\n"
             f"Broker: {self.cfg.mqtt.host}:{self.cfg.mqtt.port}\n"
             f"Topic: {self.cfg.mqtt.topic}\n"
-            f"DB: {self.cfg.db_file}\n\n"
+            f"DB: {self.cfg.db_file}\n"
             f"Empfangs-Statistik:\n"
             f"{stats_text}\n"
         )
 
         sent = self.msg_sender.send(
             trigger_key="INFO_PERIODIC",
-            trigger_title="[INFO] MQTT Logger gestartet",
+            trigger_title=self.msg_sender.config.info.title,
             enabled_channels=self.msg_sender.config.info.enabled,
             payload=body,
-            payload_full=body,
         )
 
         if sent:
@@ -638,8 +624,7 @@ class MQTTLogger:
             problems = check_schema(self.cfg.db_file, self.cfg.tables)
         except Exception as e:
             # schema read failed -> treat as fatal, mail via exception handler with a synthetic sensor_id
-            self._handle_exception("global", "schema_check", "", DatabaseError(str(e)))
-            sys.exit(1)
+            self._handle_fatal_exception("global", "schema_check", DatabaseError(str(e)))
 
         for tkey, tcfg in self.cfg.tables.items():
             if tkey in problems:
@@ -649,20 +634,14 @@ class MQTTLogger:
 
         # warn + mail about inactive tables (schema mismatch)
         for tkey, msg in self.inactive_tables.items():
-            warn = f"⚠️ SCHEMA WARNING (Table {tkey} / sensor_id={self.cfg.tables[tkey].sensor_id}): {msg}"
-            print(warn)
-            if self.msg_sender:
-                self.msg_sender.send(
-                    trigger_key=f"SCHEMA_MISMATCH_{tkey}",
-                    trigger_title="[WARN] DB Schema mismatch",
-                    enabled_channels=self.msg_sender.config.info.enabled,
-                    payload=f"{warn}\nDB: {self.cfg.db_file}\n",
-                    payload_full=f"{warn}\nDB: {self.cfg.db_file}\n",
-                )
+            error_msg = (
+                f"Table '{self.cfg.tables[tkey].name}' (sensor_id={self.cfg.tables[tkey].sensor_id}): {msg}"
+            )
+            self._handle_fatal_exception("SCHEMA_CHECK", f"schema/{tkey}", DatabaseError(error_msg))
 
         if not self.active_tables:
-            print("❌ Keine aktiven Tabellen (Schema passt nicht). Abbruch.")
-            sys.exit(2)
+            error_msg = f"No active tables after schema check. DB: {self.cfg.db_file}"
+            self._handle_fatal_exception("SCHEMA_CHECK", "schema/no_active_tables", DatabaseError(error_msg))
 
         # DB managers pro aktiver Tabelle erstellen
         for tkey, tcfg in self.active_tables.items():
@@ -673,48 +652,32 @@ class MQTTLogger:
                 fields_in_order=fields,
             )
 
-        active_sensors = ", ".join(sorted([t.sensor_id for t in self.active_tables.values()]))
-        startup_body = (
-            f"MQTT Logger startet\n\n"
-            f"Active Sensor IDs: {active_sensors}\n"
-            f"DB: {self.cfg.db_file}\n"
-            f"Broker: {self.cfg.mqtt.host}:{self.cfg.mqtt.port}\n"
-            f"Topic: {self.cfg.mqtt.topic}\n"
-        )
-        if self.msg_sender:
-            self.msg_sender.send(
-                trigger_key="LOGGER_STARTUP",
-                trigger_title="[INFO] MQTT Logger startup",
-                enabled_channels=self.msg_sender.config.info.enabled,
-                payload=startup_body,
-            )
-
         # MQTT verbinden
         try:
             self.client.connect(self.cfg.mqtt.host, self.cfg.mqtt.port, 60)
         except Exception as e:
-            self._handle_exception("global", "mqtt_connect", "", InternalLoggerError(repr(e)))
-            sys.exit(1)
-
-        # Start Info Mail (optional)
-        self.maybe_send_info_mail()
+            self._handle_fatal_exception("global", "mqtt_connect", InternalLoggerError(repr(e)))
 
         # MQTT loop
         self.client.loop_start()
+
+        # Startup info
+        active_sensors = ", ".join(sorted([t.sensor_id for t in self.active_tables.values()]))
         running_body = (
-            f"MQTT Logger laeuft und wartet auf Signale\n\n"
+            f"Logger laeuft und wartet auf Signale\n"
             f"Broker: {self.cfg.mqtt.host}:{self.cfg.mqtt.port}\n"
+            f"Topic: {self.cfg.mqtt.topic}\n"
+            f"Active Sensor IDs: {active_sensors}\n"
             f"DB: {self.cfg.db_file}\n"
-            f"Start: {datetime.datetime.now().isoformat()}\n\n"
+            f"Start: {datetime.datetime.now().isoformat()}\n"
             f"Druecke Ctrl+C zum Beenden.\n"
         )
-        if self.msg_sender:
-            self.msg_sender.send(
-                trigger_key="LOGGER_RUNNING",
-                trigger_title="[INFO] MQTT Logger running",
-                enabled_channels=self.msg_sender.config.info.enabled,
-                payload=running_body,
-            )
+        self.msg_sender.send(
+            trigger_key="LOGGER_RUNNING",
+            trigger_title=self.msg_sender.config.info.title,
+            enabled_channels=self.msg_sender.config.info.enabled,
+            payload=running_body,
+        )
 
         try:
             while True:
@@ -726,25 +689,47 @@ class MQTTLogger:
 
         except KeyboardInterrupt:
             shutdown_body = (
-                f"MQTT Logger Shutdown\n\n"
+                f"Logger Shutdown\n"
                 f"Reason: KeyboardInterrupt\n"
                 f"Time: {datetime.datetime.now().isoformat()}\n"
                 f"DB: {self.cfg.db_file}\n"
             )
-            if self.msg_sender:
-                self.msg_sender.send(
-                    trigger_key="LOGGER_SHUTDOWN",
-                    trigger_title="[INFO] MQTT Logger shutdown",
-                    enabled_channels=self.msg_sender.config.info.enabled,
-                    payload=shutdown_body,
-                )
+            self.msg_sender.send(
+                trigger_key="LOGGER_SHUTDOWN",
+                trigger_title=self.msg_sender.config.info.title,
+                enabled_channels=self.msg_sender.config.info.enabled,
+                payload=shutdown_body,
+            )
         finally:
             self.client.loop_stop()
             self.client.disconnect()
 
 
 def main():
-    logger = MQTTLogger()
+    # Initialize MessageSender first
+    try:
+        msg_sender = MessageSender(CONFIG_MESSAGE_PATH)
+    except Exception as e:
+        print(f"❌ MessageSender initialization failed: {e}")
+        sys.exit(1)
+    
+    # Initialize SystemConfig
+    try:
+        cfg = SystemConfig(CONFIG_SENSOR_PATH)
+    except Exception as e:
+        error_msg = f"Failed to load system config: {e}"
+        body = f"Config-Fehler beim Start\n{error_msg}\n"
+        msg_sender.send(
+            trigger_key="CONFIG_ERROR",
+            trigger_title="[ERROR] Config loading failed",
+            enabled_channels=msg_sender.config.info.enabled,
+            payload=body,
+            payload_full=body,
+        )
+        sys.exit(1)
+    
+    # Create logger with already-loaded dependencies
+    logger = MQTTLogger(msg_sender=msg_sender, cfg=cfg)
     logger.start()
 
 if __name__ == "__main__":
