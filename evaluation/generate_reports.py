@@ -29,13 +29,18 @@ from evaluation.repository import (
 # Projektwurzel = Ordner oberhalb von evaluation/
 REPORT_ROOT = Path(__file__).resolve().parent.parent
 
-REPORT_DIR = Path("/var/www/log/reports")
-#REPORT_DIR = Path("log/reports")
-HTML_DIR = Path("/var/www/weather")
-#HTML_DIR =  Path("log/reports")
+if os.name == "nt":
+    REPORT_DIR = Path("D:/Projekte_GITHub/sensorLogger/log/reports")
+    HTML_DIR = Path("D:/Projekte_GITHub/sensorLogger/log/reports")
+else:
+    REPORT_DIR = Path("/var/www/log/reports")
+    HTML_DIR = Path("/var/www/weather")
+
 CONFIG_PATH = REPORT_ROOT / "config" / "sensor_config.json"
 FILENAME_TABLE_STATISTICS="table_statistics.html"
 PRINT_TABLE_STATS = True
+TH_PLOTS = True
+W_PLOTS = True
 
 # globales Throttling
 _MIN_REGEN_INTERVAL = timedelta(minutes=1)
@@ -117,306 +122,442 @@ def generate_reports() -> None:
     if PRINT_TABLE_STATS:
         print_table_statistics(repo)
 
-    # Zeitbereichs-Berechnung
-    first, last = repo.get_db_time_range("th", by_alias=True)
-
-    th_first_dt = _parse_db_timestamp(first)
-    th_last_dt = _parse_db_timestamp(last)
-
-    # Zeitbereiche
-    th_last_minus_24h = th_last_dt - timedelta(hours=24)
-    th_last_minus_1w = th_last_dt - timedelta(weeks=1)
-    th_last_minus_1Mt = th_last_dt - timedelta(days=30)
-    th_last_minus_1y = th_last_dt - timedelta(days=365)
-    
-    #print("last_minus_24h: ", th_last_minus_24h)
-    #print("last_minus_1w : ", th_last_minus_1w)
-    #print("last_minus_1Mt: ", th_last_minus_1Mt)
-    #print("last_minus_1y : ", th_last_minus_1y)
-
-    first, last = repo.get_db_time_range("w", by_alias=True)
-
-    w_first_dt = _parse_db_timestamp(first)
-    w_last_dt = _parse_db_timestamp(last)
-
-    # Zeitbereiche
-    w_last_minus_24h = w_last_dt - timedelta(hours=24)
-    w_last_minus_1w = w_last_dt - timedelta(weeks=1)
-    w_last_minus_1Mt = w_last_dt - timedelta(days=30)
-    w_last_minus_1y = w_last_dt - timedelta(days=365)
-
-    #print("last_minus_24h: ", w_last_minus_24h)
-    #print("last_minus_1w : ", w_last_minus_1w)
-    #print("last_minus_1Mt: ", w_last_minus_1Mt)
-    #print("last_minus_1y : ", w_last_minus_1y)
-
     # ------------------------------------------------------------------
     # HIER deine "wilde" Liste – nur mit Path statt r"..\..."
     # ------------------------------------------------------------------
     generate_html_table_statistics(repo, HTML_DIR, FILENAME_TABLE_STATISTICS)
 
-    day_th_dir = REPORT_DIR / "day_th"
-    week_th_dir = REPORT_DIR / "week_th"
-    month_th_dir = REPORT_DIR / "month_th"
-    year_th_dir = REPORT_DIR / "year_th"
+    if W_PLOTS:
+        # Zeitbereichs-Berechnung
+        first, last = repo.get_db_time_range("w", by_alias=True)
 
-    for d in (day_th_dir, week_th_dir, month_th_dir, year_th_dir):
-        _ensure_dir(d)
+        w_first_dt = _parse_db_timestamp(first)
+        w_last_dt = _parse_db_timestamp(last)
 
-    # DAY Plots
-    show = False
-    #print("Erzeuge DAY-Reports ...")
-    repo.multiplot_last_sensor_values("th",
-        ["Indoor_Temperature", "Outdoor_Temperature", "Garden_Temperature", "Basement_Temperature",
-         "Indoor_Humidity", "Outdoor_Humidity", "Garden_Humidity", "Basement_Humidity", "Battery_Status"],
-        filename=day_th_dir / "status.png",
-        title="Current Sensor Values",
-        show=show,
-    )
+        # Zeitbereiche
+        w_last_minus_24h = w_last_dt - timedelta(hours=24)
+        w_last_minus_1w = w_last_dt - timedelta(weeks=1)
+        w_last_minus_1Mt = w_last_dt - timedelta(days=30)
+        w_last_minus_1y = w_last_dt - timedelta(days=365)
 
-    repo.multiplot_sensor_values_describe("th",
-        ["Indoor_Temperature", "Outdoor_Temperature", "Garden_Temperature", "Basement_Temperature",
-         "Indoor_Humidity", "Outdoor_Humidity", "Garden_Humidity", "Basement_Humidity", "Battery_Status"],
-        th_last_minus_24h,
-        th_last_dt,
-        filename=day_th_dir / "00_describe.png",
-        title="Sensor Values Description - Last 24 Hours",
-        show=show,
-    )
+        #print("last_minus_24h: ", w_last_minus_24h)
+        #print("last_minus_1w : ", w_last_minus_1w)
+        #print("last_minus_1Mt: ", w_last_minus_1Mt)
+        #print("last_minus_1y : ", w_last_minus_1y)
 
-    repo.plot_sensor_values("th",
-        "Indoor_Temperature",
-        th_last_minus_24h,
-        th_last_dt,
-        filename=day_th_dir / "01_Indoor_Temperature_last_minus_24h.png",
-        title="Indoor Temperature - Last 24 Hours",
-        show=show,
-    )
+        day_w_dir = REPORT_DIR / "day_w"
+        week_w_dir = REPORT_DIR / "week_w"
+        month_w_dir = REPORT_DIR / "month_w"
+        year_w_dir = REPORT_DIR / "year_w"
 
-    repo.plot_sensor_values("th",
-        "Outdoor_Temperature",
-        th_last_minus_24h,
-        th_last_dt,
-        filename=day_th_dir / "02_Outdoor_Temperature_last_minus_24h.png",
-        title="Outdoor Temperature - Last 24 Hours",
-        show=show,
-    )
+        for d in (day_w_dir, week_w_dir, month_w_dir, year_w_dir):
+            _ensure_dir(d)
 
-    repo.plot_sensor_values("th",
-        "Garden_Temperature",
-        th_last_minus_24h,
-        th_last_dt,
-        filename=day_th_dir / "03_Garden_Temperature_last_minus_24h.png",
-        title="Garden Temperature - Last 24 Hours",
-        show=show,
-    )
+        # DAY Plots    
+        show = False
+        #print("Erzeuge DAY-Reports ...")
+        repo.multiplot_last_sensor_values("w",
+            ["Wind_Speed", "Gust_Speed", "Battery_Status"],
+            filename=day_w_dir / "status.png",
+            title="Current Sensor Values",
+            show=show,
+        )
+        repo.multiplot_sensor_values_describe("w",
+            ["Wind_Speed", "Gust_Speed", "Battery_Status"],
+            w_last_minus_24h,
+            w_last_dt,
+            filename=day_w_dir / "00_describe.png",
+            title="Sensor Values Description - Last 24 Hours",
+            show=show,
+        )
+        repo.plot_sensor_values("w",
+            "Wind_Speed",
+            w_last_minus_24h,
+            w_last_dt,
+            filename=day_w_dir / "01_Wind_Speed_last_minus_24h.png",
+            title="Wind Speed - Last 24 Hours",
+            show=show,
+        )
+        repo.plot_sensor_values("w",
+            "Gust_Speed",
+            w_last_minus_24h,
+            w_last_dt,
+            filename=day_w_dir / "02_Gust_Speed_last_minus_24h.png",
+            title="Gust Speed - Last 24 Hours",
+            show=show,
+        )
+        generate_image_json(day_w_dir, output_json="images.json", status_image="status.png")
 
-    repo.plot_sensor_values("th",
-        "Basement_Temperature",
-        th_last_minus_24h,
-        th_last_dt,
-        filename=day_th_dir / "04_Basement_Temperature_last_minus_24h.png",
-        title="Basement Temperature - Last 24 Hours",
-        show=show,
-    )
+        # WEEK Plots
+        show = False
+        #print("Erzeuge WEEK-Reports ...")
+        shutil.copy2(day_w_dir / "status.png", week_w_dir / "status.png")
+        repo.multiplot_sensor_values_describe("w",
+            ["Wind_Speed", "Gust_Speed", "Battery_Status"],
+            w_last_minus_1w,
+            w_last_dt,
+            filename=week_w_dir / "00_describe.png",
+            title="Sensor Values Description - Last Week",
+            show=show,
+        )
+        repo.plot_sensor_values("w",
+            "Wind_Speed",
+            w_last_minus_1w,
+            w_last_dt,
+            filename=week_w_dir / "01_Wind_Speed_last_minus_1w.png",
+            title="Wind Speed - Last Week",
+            show=show,
+        )
+        repo.plot_sensor_values("w",
+            "Gust_Speed",
+            w_last_minus_1w,
+            w_last_dt,
+            filename=week_w_dir / "02_Gust_Speed_last_minus_1w.png",
+            title="Gust Speed - Last Week",
+            show=show,
+        )
+        generate_image_json(week_w_dir, output_json="images.json", status_image="status.png")
 
-    repo.multiplot_sensor_values("th",
-        ["Indoor_Temperature", "Outdoor_Temperature", "Garden_Temperature", "Basement_Temperature"],
-        th_last_minus_24h,
-        th_last_dt,
-        filename=day_th_dir / "05_Temperatures_last_minus_24h.png",
-        title="Temperatures - Last 24 Hours",
-        show=show,
-    )
+        # MONTH Plots
+        show = False
+        #print("Erzeuge MONTH-Reports ...")
+        shutil.copy2(day_w_dir / "status.png", month_w_dir / "status.png")
+        repo.multiplot_sensor_values_describe("w",
+            ["Wind_Speed", "Gust_Speed", "Battery_Status"],
+            w_last_minus_1Mt,
+            w_last_dt,
+            filename=month_w_dir / "00_describe.png",
+            title="Sensor Values Description - Last Month",
+            show=show,
+        )
+        repo.plot_sensor_values("w",
+            "Wind_Speed",
+            w_last_minus_1Mt,
+            w_last_dt,
+            filename=month_w_dir / "01_Wind_Speed_last_minus_1Mt.png",
+            title="Wind Speed - Last Month",
+            show=show,
+        )
+        repo.plot_sensor_values("w",
+            "Gust_Speed",
+            w_last_minus_1Mt,
+            w_last_dt,
+            filename=month_w_dir / "02_Gust_Speed_last_minus_1Mt.png",
+            title="Gust Speed - Last Month",
+            show=show,
+        )
+        generate_image_json(month_w_dir, output_json="images.json", status_image="status.png")
 
-    generate_image_json(day_th_dir, output_json="images.json", status_image="status.png")
+        # YEAR Plots
+        show = False
+        #print("Erzeuge YEAR-Reports ...")
+        shutil.copy2(day_w_dir / "status.png", year_w_dir / "status.png")
+        repo.multiplot_sensor_values_describe("w",
+            ["Wind_Speed", "Gust_Speed", "Battery_Status"],
+            w_last_minus_1y,
+            w_last_dt,
+            filename=year_w_dir / "00_describe.png",
+            title="Sensor Values Description - Last Year",
+            show=show,
+        )
+        repo.plot_sensor_values("w",
+            "Wind_Speed",
+            w_last_minus_1y,
+            w_last_dt,
+            filename=year_w_dir / "01_Wind_Speed_last_minus_1y.png",
+            title="Wind Speed - Last Year",
+            show=show,
+        )
+        repo.plot_sensor_values("w",
+            "Gust_Speed",
+            w_last_minus_1y,
+            w_last_dt,
+            filename=year_w_dir / "02_Gust_Speed_last_minus_1y.png",
+            title="Gust Speed - Last Year",
+            show=show,
+        )
+        generate_image_json(year_w_dir, output_json="images.json", status_image="status.png")
 
-    # WEEK Plots
-    show = False
-    #print("Erzeuge WEEK-Reports ...")
-    shutil.copy2(day_th_dir / "status.png", week_th_dir / "status.png")
+    if TH_PLOTS:
+        # Zeitbereichs-Berechnung
+        first, last = repo.get_db_time_range("th", by_alias=True)
 
-    repo.multiplot_sensor_values_describe("th",
-        ["Indoor_Temperature", "Outdoor_Temperature", "Garden_Temperature", "Basement_Temperature",
-         "Indoor_Humidity", "Outdoor_Humidity", "Garden_Humidity", "Basement_Humidity", "Battery_Status"],
-        th_last_minus_1w,
-        th_last_dt,
-        filename=week_th_dir / "00_describe.png",
-        title="Sensor Values Description - Last Week",
-        show=show,
-    )
+        th_first_dt = _parse_db_timestamp(first)
+        th_last_dt = _parse_db_timestamp(last)
 
-    repo.plot_sensor_values("th",
-        "Indoor_Temperature",
-        th_last_minus_1w,
-        th_last_dt,
-        filename=week_th_dir / "01_Indoor_Temperature_last_minus_1w.png",
-        title="Indoor Temperature - Last Week",
-        show=show,
-    )
+        # Zeitbereiche
+        th_last_minus_24h = th_last_dt - timedelta(hours=24)
+        th_last_minus_1w = th_last_dt - timedelta(weeks=1)
+        th_last_minus_1Mt = th_last_dt - timedelta(days=30)
+        th_last_minus_1y = th_last_dt - timedelta(days=365)
+        
+        #print("last_minus_24h: ", th_last_minus_24h)
+        #print("last_minus_1w : ", th_last_minus_1w)
+        #print("last_minus_1Mt: ", th_last_minus_1Mt)
+        #print("last_minus_1y : ", th_last_minus_1y)
 
-    repo.plot_sensor_values("th",
-        "Outdoor_Temperature",
-        th_last_minus_1w,
-        th_last_dt,
-        filename=week_th_dir / "02_Outdoor_Temperature_last_minus_1w.png",
-        title="Outdoor Temperature - Last Week",
-        show=show,
-    )
+        day_th_dir = REPORT_DIR / "day_th"
+        week_th_dir = REPORT_DIR / "week_th"
+        month_th_dir = REPORT_DIR / "month_th"
+        year_th_dir = REPORT_DIR / "year_th"
 
-    repo.plot_sensor_values("th",
-        "Garden_Temperature",
-        th_last_minus_1w,
-        th_last_dt,
-        filename=week_th_dir / "03_Garden_Temperature_last_minus_1w.png",
-        title="Garden Temperature - Last Week",
-        show=show,
-    )
+        for d in (day_th_dir, week_th_dir, month_th_dir, year_th_dir):
+            _ensure_dir(d)
 
-    repo.plot_sensor_values("th",
-        "Basement_Temperature",
-        th_last_minus_1w,
-        th_last_dt,
-        filename=week_th_dir / "04_Basement_Temperature_last_minus_1w.png",
-        title="Basement Temperature - Last Week",
-        show=show,
-    )
+        # DAY Plots    
+        show = False
+        #print("Erzeuge DAY-Reports ...")
+        repo.multiplot_last_sensor_values("th",
+            ["Indoor_Temperature", "Outdoor_Temperature", "Garden_Temperature", "Basement_Temperature",
+            "Indoor_Humidity", "Outdoor_Humidity", "Garden_Humidity", "Basement_Humidity", "Battery_Status"],
+            filename=day_th_dir / "status.png",
+            title="Current Sensor Values",
+            show=show,
+        )
 
-    repo.multiplot_sensor_values("th",
-        ["Indoor_Temperature", "Outdoor_Temperature", "Garden_Temperature", "Basement_Temperature"],
-        th_last_minus_1w,
-        th_last_dt,
-        filename=week_th_dir / "05_Temperatures_last_minus_1w.png",
-        title="Temperatures - Last Week",
-        show=show,
-    )
+        repo.multiplot_sensor_values_describe("th",
+            ["Indoor_Temperature", "Outdoor_Temperature", "Garden_Temperature", "Basement_Temperature",
+            "Indoor_Humidity", "Outdoor_Humidity", "Garden_Humidity", "Basement_Humidity", "Battery_Status"],
+            th_last_minus_24h,
+            th_last_dt,
+            filename=day_th_dir / "00_describe.png",
+            title="Sensor Values Description - Last 24 Hours",
+            show=show,
+        )
 
-    generate_image_json(week_th_dir, output_json="images.json", status_image="status.png")
+        repo.plot_sensor_values("th",
+            "Indoor_Temperature",
+            th_last_minus_24h,
+            th_last_dt,
+            filename=day_th_dir / "01_Indoor_Temperature_last_minus_24h.png",
+            title="Indoor Temperature - Last 24 Hours",
+            show=show,
+        )
 
-    # MONTH Plots
-    show = False
-    #print("Erzeuge MONTH-Reports ...")
-    shutil.copy2(day_th_dir / "status.png", month_th_dir / "status.png")
+        repo.plot_sensor_values("th",
+            "Outdoor_Temperature",
+            th_last_minus_24h,
+            th_last_dt,
+            filename=day_th_dir / "02_Outdoor_Temperature_last_minus_24h.png",
+            title="Outdoor Temperature - Last 24 Hours",
+            show=show,
+        )
 
-    repo.multiplot_sensor_values_describe("th",
-        ["Indoor_Temperature", "Outdoor_Temperature", "Garden_Temperature", "Basement_Temperature",
-         "Indoor_Humidity", "Outdoor_Humidity", "Garden_Humidity", "Basement_Humidity", "Battery_Status"],
-        th_last_minus_1Mt,
-        th_last_dt,
-        filename=month_th_dir / "00_describe.png",
-        title="Sensor Values Description - Last Month",
-        show=show,
-    )
+        repo.plot_sensor_values("th",
+            "Garden_Temperature",
+            th_last_minus_24h,
+            th_last_dt,
+            filename=day_th_dir / "03_Garden_Temperature_last_minus_24h.png",
+            title="Garden Temperature - Last 24 Hours",
+            show=show,
+        )
 
-    repo.plot_sensor_values("th",
-        "Indoor_Temperature",
-        th_last_minus_1Mt,
-        th_last_dt,
-        filename=month_th_dir / "01_Indoor_Temperature_last_minus_1Mt.png",
-        title="Indoor Temperature - Last Month",
-        show=show,
-    )
+        repo.plot_sensor_values("th",
+            "Basement_Temperature",
+            th_last_minus_24h,
+            th_last_dt,
+            filename=day_th_dir / "04_Basement_Temperature_last_minus_24h.png",
+            title="Basement Temperature - Last 24 Hours",
+            show=show,
+        )
 
-    repo.plot_sensor_values("th",
-        "Outdoor_Temperature",
-        th_last_minus_1Mt,
-        th_last_dt,
-        filename=month_th_dir / "02_Outdoor_Temperature_last_minus_1Mt.png",
-        title="Outdoor Temperature - Last Month",
-        show=show,
-    )
+        repo.multiplot_sensor_values("th",
+            ["Indoor_Temperature", "Outdoor_Temperature", "Garden_Temperature", "Basement_Temperature"],
+            th_last_minus_24h,
+            th_last_dt,
+            filename=day_th_dir / "05_Temperatures_last_minus_24h.png",
+            title="Temperatures - Last 24 Hours",
+            show=show,
+        )
 
-    repo.plot_sensor_values("th",
-        "Garden_Temperature",
-        th_last_minus_1Mt,
-        th_last_dt,
-        filename=month_th_dir / "03_Garden_Temperature_last_minus_1Mt.png",
-        title="Garden Temperature - Last Month",
-        show=show,
-    )
+        generate_image_json(day_th_dir, output_json="images.json", status_image="status.png")
 
-    repo.plot_sensor_values("th",
-        "Basement_Temperature",
-        th_last_minus_1Mt,
-        th_last_dt,
-        filename=month_th_dir / "04_Basement_Temperature_last_minus_1Mt.png",
-        title="Basement Temperature - Last Month",
-        show=show,
-    )
+        # WEEK Plots
+        show = False
+        #print("Erzeuge WEEK-Reports ...")
+        shutil.copy2(day_th_dir / "status.png", week_th_dir / "status.png")
 
-    repo.multiplot_sensor_values("th",
-        ["Indoor_Temperature", "Outdoor_Temperature", "Garden_Temperature", "Basement_Temperature"],
-        th_last_minus_1Mt,
-        th_last_dt,
-        filename=month_th_dir / "05_Temperatures_last_minus_1Mt.png",
-        title="Temperatures - Last Month",
-        show=show,
-    )
+        repo.multiplot_sensor_values_describe("th",
+            ["Indoor_Temperature", "Outdoor_Temperature", "Garden_Temperature", "Basement_Temperature",
+            "Indoor_Humidity", "Outdoor_Humidity", "Garden_Humidity", "Basement_Humidity", "Battery_Status"],
+            th_last_minus_1w,
+            th_last_dt,
+            filename=week_th_dir / "00_describe.png",
+            title="Sensor Values Description - Last Week",
+            show=show,
+        )
 
-    generate_image_json(month_th_dir, output_json="images.json", status_image="status.png")
+        repo.plot_sensor_values("th",
+            "Indoor_Temperature",
+            th_last_minus_1w,
+            th_last_dt,
+            filename=week_th_dir / "01_Indoor_Temperature_last_minus_1w.png",
+            title="Indoor Temperature - Last Week",
+            show=show,
+        )
 
-    # YEAR Plots
-    show = False
-    #print("Erzeuge YEAR-Reports ...")
-    shutil.copy2(day_th_dir / "status.png", year_th_dir / "status.png")
+        repo.plot_sensor_values("th",
+            "Outdoor_Temperature",
+            th_last_minus_1w,
+            th_last_dt,
+            filename=week_th_dir / "02_Outdoor_Temperature_last_minus_1w.png",
+            title="Outdoor Temperature - Last Week",
+            show=show,
+        )
 
-    repo.multiplot_sensor_values_describe("th",
-        ["Indoor_Temperature", "Outdoor_Temperature", "Garden_Temperature", "Basement_Temperature",
-         "Indoor_Humidity", "Outdoor_Humidity", "Garden_Humidity", "Basement_Humidity", "Battery_Status"],
-        th_last_minus_1y,
-        th_last_dt,
-        filename=year_th_dir / "00_describe.png",
-        title="Sensor Values Description - Last Year",
-        show=show,
-    )
+        repo.plot_sensor_values("th",
+            "Garden_Temperature",
+            th_last_minus_1w,
+            th_last_dt,
+            filename=week_th_dir / "03_Garden_Temperature_last_minus_1w.png",
+            title="Garden Temperature - Last Week",
+            show=show,
+        )
 
-    repo.plot_sensor_values("th",
-        "Indoor_Temperature",
-        th_last_minus_1y,
-        th_last_dt,
-        filename=year_th_dir / "01_Indoor_Temperature_last_minus_1y.png",
-        title="Indoor Temperature - Last Year",
-        show=show,
-    )
+        repo.plot_sensor_values("th",
+            "Basement_Temperature",
+            th_last_minus_1w,
+            th_last_dt,
+            filename=week_th_dir / "04_Basement_Temperature_last_minus_1w.png",
+            title="Basement Temperature - Last Week",
+            show=show,
+        )
 
-    repo.plot_sensor_values("th",
-        "Outdoor_Temperature",
-        th_last_minus_1y,
-        th_last_dt,
-        filename=year_th_dir / "02_Outdoor_Temperature_last_minus_1y.png",
-        title="Outdoor Temperature - Last Year",
-        show=show,
-    )
+        repo.multiplot_sensor_values("th",
+            ["Indoor_Temperature", "Outdoor_Temperature", "Garden_Temperature", "Basement_Temperature"],
+            th_last_minus_1w,
+            th_last_dt,
+            filename=week_th_dir / "05_Temperatures_last_minus_1w.png",
+            title="Temperatures - Last Week",
+            show=show,
+        )
 
-    repo.plot_sensor_values("th",
-        "Garden_Temperature",
-        th_last_minus_1y,
-        th_last_dt,
-        filename=year_th_dir / "03_Garden_Temperature_last_minus_1y.png",
-        title="Garden Temperature - Last Year",
-        show=show,
-    )
+        generate_image_json(week_th_dir, output_json="images.json", status_image="status.png")
 
-    repo.plot_sensor_values("th",
-        "Basement_Temperature",
-        th_last_minus_1y,
-        th_last_dt,
-        filename=year_th_dir / "04_Basement_Temperature_last_minus_1y.png",
-        title="Basement Temperature - Last Year",
-        show=show,
-    )
+        # MONTH Plots
+        show = False
+        #print("Erzeuge MONTH-Reports ...")
+        shutil.copy2(day_th_dir / "status.png", month_th_dir / "status.png")
 
-    repo.multiplot_sensor_values("th",
-        ["Indoor_Temperature", "Outdoor_Temperature", "Garden_Temperature", "Basement_Temperature"],
-        th_last_minus_1y,
-        th_last_dt,
-        filename=year_th_dir / "05_Temperatures_last_minus_1y.png",
-        title="Temperatures - Last Year",
-        show=show,
-    )
+        repo.multiplot_sensor_values_describe("th",
+            ["Indoor_Temperature", "Outdoor_Temperature", "Garden_Temperature", "Basement_Temperature",
+            "Indoor_Humidity", "Outdoor_Humidity", "Garden_Humidity", "Basement_Humidity", "Battery_Status"],
+            th_last_minus_1Mt,
+            th_last_dt,
+            filename=month_th_dir / "00_describe.png",
+            title="Sensor Values Description - Last Month",
+            show=show,
+        )
+
+        repo.plot_sensor_values("th",
+            "Indoor_Temperature",
+            th_last_minus_1Mt,
+            th_last_dt,
+            filename=month_th_dir / "01_Indoor_Temperature_last_minus_1Mt.png",
+            title="Indoor Temperature - Last Month",
+            show=show,
+        )
+
+        repo.plot_sensor_values("th",
+            "Outdoor_Temperature",
+            th_last_minus_1Mt,
+            th_last_dt,
+            filename=month_th_dir / "02_Outdoor_Temperature_last_minus_1Mt.png",
+            title="Outdoor Temperature - Last Month",
+            show=show,
+        )
+
+        repo.plot_sensor_values("th",
+            "Garden_Temperature",
+            th_last_minus_1Mt,
+            th_last_dt,
+            filename=month_th_dir / "03_Garden_Temperature_last_minus_1Mt.png",
+            title="Garden Temperature - Last Month",
+            show=show,
+        )
+
+        repo.plot_sensor_values("th",
+            "Basement_Temperature",
+            th_last_minus_1Mt,
+            th_last_dt,
+            filename=month_th_dir / "04_Basement_Temperature_last_minus_1Mt.png",
+            title="Basement Temperature - Last Month",
+            show=show,
+        )
+
+        repo.multiplot_sensor_values("th",
+            ["Indoor_Temperature", "Outdoor_Temperature", "Garden_Temperature", "Basement_Temperature"],
+            th_last_minus_1Mt,
+            th_last_dt,
+            filename=month_th_dir / "05_Temperatures_last_minus_1Mt.png",
+            title="Temperatures - Last Month",
+            show=show,
+        )
+
+        generate_image_json(month_th_dir, output_json="images.json", status_image="status.png")
+
+        # YEAR Plots
+        show = False
+        #print("Erzeuge YEAR-Reports ...")
+        shutil.copy2(day_th_dir / "status.png", year_th_dir / "status.png")
+
+        repo.multiplot_sensor_values_describe("th",
+            ["Indoor_Temperature", "Outdoor_Temperature", "Garden_Temperature", "Basement_Temperature",
+            "Indoor_Humidity", "Outdoor_Humidity", "Garden_Humidity", "Basement_Humidity", "Battery_Status"],
+            th_last_minus_1y,
+            th_last_dt,
+            filename=year_th_dir / "00_describe.png",
+            title="Sensor Values Description - Last Year",
+            show=show,
+        )
+
+        repo.plot_sensor_values("th",
+            "Indoor_Temperature",
+            th_last_minus_1y,
+            th_last_dt,
+            filename=year_th_dir / "01_Indoor_Temperature_last_minus_1y.png",
+            title="Indoor Temperature - Last Year",
+            show=show,
+        )
+
+        repo.plot_sensor_values("th",
+            "Outdoor_Temperature",
+            th_last_minus_1y,
+            th_last_dt,
+            filename=year_th_dir / "02_Outdoor_Temperature_last_minus_1y.png",
+            title="Outdoor Temperature - Last Year",
+            show=show,
+        )
+
+        repo.plot_sensor_values("th",
+            "Garden_Temperature",
+            th_last_minus_1y,
+            th_last_dt,
+            filename=year_th_dir / "03_Garden_Temperature_last_minus_1y.png",
+            title="Garden Temperature - Last Year",
+            show=show,
+        )
+
+        repo.plot_sensor_values("th",
+            "Basement_Temperature",
+            th_last_minus_1y,
+            th_last_dt,
+            filename=year_th_dir / "04_Basement_Temperature_last_minus_1y.png",
+            title="Basement Temperature - Last Year",
+            show=show,
+        )
+
+        repo.multiplot_sensor_values("th",
+            ["Indoor_Temperature", "Outdoor_Temperature", "Garden_Temperature", "Basement_Temperature"],
+            th_last_minus_1y,
+            th_last_dt,
+            filename=year_th_dir / "05_Temperatures_last_minus_1y.png",
+            title="Temperatures - Last Year",
+            show=show,
+        )
 
 
-    generate_image_json(year_th_dir, output_json="images.json", status_image="status.png")
+        generate_image_json(year_th_dir, output_json="images.json", status_image="status.png")
 
     # ------------------------------------------------------------------
     _last_regen = datetime.now()

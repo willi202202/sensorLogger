@@ -69,12 +69,13 @@ class Sensor:
     limits: Tuple[Optional[float], Optional[float]] = (None, None)
     warn: Tuple[Optional[float], Optional[float]] = (None, None)
     alarm: Tuple[Optional[float], Optional[float]] = (None, None)
+    plot_limits: Tuple[Optional[float], Optional[float]] = (None, None)
 
     color: Optional[str] = None
     invalid_map: Dict[str, Any] = field(default_factory=dict)
 
     def __repr__(self) -> str:
-        return f"Sensor(key={self.key}, alias={self.alias}, type={self.field_type}, unit={self.unit}, round={self.round}, limits={self.limits}, warn={self.warn}, alarm={self.alarm}, color={self.color}, invalid_map={self.invalid_map})"
+        return f"Sensor(key={self.key}, alias={self.alias}, type={self.field_type}, unit={self.unit}, round={self.round}, limits={self.limits}, warn={self.warn}, alarm={self.alarm}, plot_limits={self.plot_limits}, color={self.color}, invalid_map={self.invalid_map})"
 
     @staticmethod
     def from_dict(key: str, d: Dict[str, Any]) -> "Sensor":
@@ -88,6 +89,7 @@ class Sensor:
             limits=_to_tuple2(d.get("limits")),
             warn=_to_tuple2(d.get("warn")),
             alarm=_to_tuple2(d.get("alarm")),
+            plot_limits=_to_tuple2(d.get("plot_limits")),
             color=d.get("color"),
             invalid_map=d.get("invalid_map", {}) or {},
         )
@@ -607,4 +609,4 @@ if __name__ == "__main__":
     print(f"  INFO: {msg_config.info.title} - {msg_config.info.enabled.logfile}")
     print(f"  MISSING_DATA: {msg_config.missing_data.title} - Window: {msg_config.missing_data.window_minutes}min")
     print(f"  DB_SIZE: {msg_config.db_size.title} - Warn: {msg_config.db_size.warn_mb}MB, Crit: {msg_config.db_size.crit_mb}MB")
-    print(f"  BAD_VALUES: {msg_config.bad_values.title} - Max Repeat: {msg_config.bad_values.max_repeat_every_hours}h")
+    #print(f"  BAD_VALUES: {msg_config.bad_values.title} - Max Repeat: {msg_config.bad_values.max_repeat_every_hours}h")

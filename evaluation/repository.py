@@ -382,6 +382,11 @@ class SensorRepository:
         plt.scatter(min_row["timestamp"], min_row["value"], color="blue", s=80, label="Minimum")
         plt.scatter(max_row["timestamp"], max_row["value"], color="red", s=80, label="Maximum")
 
+        # Plot-Limits setzen
+        plot_limits = sensor.plot_limits or (None, None)
+        if plot_limits != (None, None):
+            plt.ylim(plot_limits)
+        
         # Titel mit Werten
         if title is None:
             title = f"{sensor.alias} ({sensor.key})\n"
@@ -436,6 +441,7 @@ class SensorRepository:
             df["timestamp"] = pd.to_datetime(df["timestamp"])
 
             unit = sensor.unit or ""
+            #plot_limits = sensor.plot_limits or (None, None)
             grouped[unit].append((sensor, df))
 
         if not grouped:
@@ -455,7 +461,7 @@ class SensorRepository:
             entries = grouped[unit]
 
             for sensor, df in entries:
-                color = sensor.color if hasattr(sensor, "plot") else None
+                color = sensor.color if hasattr(sensor, "color") else None
                 if by_alias:
                     label = f"{sensor.alias}"
                 else:
@@ -475,6 +481,9 @@ class SensorRepository:
             else:
                 ax.set_ylabel("Value")
                 ax.set_title(f"{title} (unitless)")
+            #print(f"Plot Limits for sensor '{sensor.key}': {plot_limits}")
+            #if plot_limits != (None, None):
+            #    ax.set_ylim(plot_limits)
 
             ax.grid(True)
             ax.legend(loc="best")
