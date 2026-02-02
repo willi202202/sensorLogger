@@ -186,6 +186,26 @@ def generate_reports() -> None:
             title="Gust Speed - Last 24 Hours",
             show=show,
         )
+        repo.plot_windrose("w",
+            "Wind_Direction_Degree",
+            "Wind_Speed",
+            0.1,
+            w_last_minus_24h,
+            w_last_dt,
+            filename=day_w_dir / "03_Windrose_Wind_last_minus_24h.png",
+            title="Wind - Last 24 Hours",
+            show=show,
+        )
+        repo.plot_windrose("w",
+            "Wind_Direction_Degree",
+            "Gust_Speed",
+            0.1,
+            w_last_minus_24h,
+            w_last_dt,
+            filename=day_w_dir / "04_Windrose_Gust_last_minus_24h.png",
+            title="Gust - Last 24 Hours",
+            show=show,
+        )
         generate_image_json(day_w_dir, output_json="images.json", status_image="status.png")
 
         # WEEK Plots
@@ -214,6 +234,26 @@ def generate_reports() -> None:
             w_last_dt,
             filename=week_w_dir / "02_Gust_Speed_last_minus_1w.png",
             title="Gust Speed - Last Week",
+            show=show,
+        )
+        repo.plot_windrose("w",
+            "Wind_Direction_Degree",
+            "Wind_Speed",
+            0.5,
+            w_last_minus_1w,
+            w_last_dt,
+            filename=week_w_dir / "03_Windrose_Wind_last_minus_1w.png",
+            title="Wind - Last Week",
+            show=show,
+        )
+        repo.plot_windrose("w",
+            "Wind_Direction_Degree",
+            "Gust_Speed",
+            0.5,
+            w_last_minus_1w,
+            w_last_dt,
+            filename=week_w_dir / "04_Windrose_Gust_last_minus_1w.png",
+            title="Gust - Last Week",
             show=show,
         )
         generate_image_json(week_w_dir, output_json="images.json", status_image="status.png")
@@ -246,6 +286,26 @@ def generate_reports() -> None:
             title="Gust Speed - Last Month",
             show=show,
         )
+        repo.plot_windrose("w",
+            "Wind_Direction_Degree",
+            "Wind_Speed",
+            0.5,
+            w_last_minus_1Mt,
+            w_last_dt,
+            filename=month_w_dir / "03_Windrose_Wind_last_minus_1Mt.png",
+            title="Wind - Last Month",
+            show=show,
+        )
+        repo.plot_windrose("w",
+            "Wind_Direction_Degree",
+            "Gust_Speed",
+            0.5,
+            w_last_minus_1Mt,
+            w_last_dt,
+            filename=month_w_dir / "04_Windrose_Gust_last_minus_1Mt.png",
+            title="Gust - Last Month",
+            show=show,
+        )
         generate_image_json(month_w_dir, output_json="images.json", status_image="status.png")
 
         # YEAR Plots
@@ -274,6 +334,26 @@ def generate_reports() -> None:
             w_last_dt,
             filename=year_w_dir / "02_Gust_Speed_last_minus_1y.png",
             title="Gust Speed - Last Year",
+            show=show,
+        )
+        repo.plot_windrose("w",
+            "Wind_Direction_Degree",
+            "Wind_Speed",
+            1.0,
+            w_last_minus_1y,
+            w_last_dt,
+            filename=year_w_dir / "03_Windrose_Wind_last_minus_1y.png",
+            title="Windrose - Wind - Last Year",
+            show=show,
+        )
+        repo.plot_windrose("w",
+            "Wind_Direction_Degree",
+            "Gust_Speed",
+            1.0,
+            w_last_minus_1y,
+            w_last_dt,
+            filename=year_w_dir / "04_Windrose_Gust_last_minus_1y.png",
+            title="Windrose - Gust - Last Year",
             show=show,
         )
         generate_image_json(year_w_dir, output_json="images.json", status_image="status.png")

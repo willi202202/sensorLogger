@@ -3,8 +3,11 @@ import os
 import sqlite3
 import statistics
 import pandas as pd
+import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.ticker as mtick
 
+from windrose import WindroseAxes 
 from rich import print
 from datetime import datetime, timedelta
 from collections import defaultdict
@@ -112,7 +115,6 @@ class SensorRepository:
         if inactive_tables:
             raise ColumnNotFound("Schema mismatch:\n" + "\n".join(f"{k}: {v}" for k,v in inactive_tables.items()))
 
-    # ----------------- Datenabfrage -----------------
     def get_table_id(self, table_key, by_alias=True):
         """
         Liefert den Tabellennamen für den angegebenen table_key.
@@ -416,7 +418,115 @@ class SensorRepository:
             plt.show()
 
         plt.close()
-       
+
+    def plot_windrose(self, table_key, sensor_key_direction, sensor_key_speed, min_speed_visible=0.5, start_time=None, stop_time=None, 
+                      title=None, filename=None, show=False, by_alias=True):
+
+        """
+        Windrose aus Richtung + Geschwindigkeit.
+        Werte < min_speed_visible werden NICHT gezeichnet (ausgeblendet),
+        aber die Radius-Skala wird als Prozent bezogen auf ALLE Samples angezeigt.
+        (Ohne calm_limit, ohne NaNs in den Daten -> windrose-kompatibel.)
+        """
+
+        # Sensor & Werte laden
+        table_dir, sensor_dir, df_dir = self.get_sensor_values(
+            table_key, sensor_key_direction, start_time, stop_time, by_alias=by_alias
+        )
+        table_spd, sensor_spd, df_spd = self.get_sensor_values(
+            table_key, sensor_key_speed, start_time, stop_time, by_alias=by_alias
+        )
+
+        if df_dir.empty or df_spd.empty:
+            print("⚠️ Keine Daten zum Plotten der Windrose vorhanden!")
+            return
+
+        # Zeitstempel
+        df_dir["timestamp"] = pd.to_datetime(df_dir["timestamp"], errors="coerce")
+        df_spd["timestamp"] = pd.to_datetime(df_spd["timestamp"], errors="coerce")
+        df_dir = df_dir.dropna(subset=["timestamp"])
+        df_spd = df_spd.dropna(subset=["timestamp"])
+
+        # Merge
+        df_merged = pd.merge_asof(
+            df_dir.sort_values("timestamp"),
+            df_spd.sort_values("timestamp"),
+            on="timestamp",
+            suffixes=("_dir", "_spd"),
+        )
+
+        # Numerisch + NaNs raus
+        df_merged["value_dir"] = pd.to_numeric(df_merged["value_dir"], errors="coerce")
+        df_merged["value_spd"] = pd.to_numeric(df_merged["value_spd"], errors="coerce")
+        df_merged = df_merged.dropna(subset=["value_dir", "value_spd"])
+
+        if df_merged.empty:
+            print("⚠️ Keine gueltigen (dir, spd) Paare nach dem Merge.")
+            return
+
+        unit = sensor_spd.unit or ""
+
+        wd_all = df_merged["value_dir"].to_numpy(dtype=float)
+        ws_all = df_merged["value_spd"].to_numpy(dtype=float)
+        wd_all = np.mod(wd_all, 360.0)
+
+        n_all = len(ws_all)
+        mask_visible = ws_all >= min_speed_visible
+        n_vis = int(mask_visible.sum())
+        hidden_frac = (1.0 - (n_vis / n_all)) * 100.0
+
+        if n_vis == 0:
+            print(f"⚠️ Keine Daten >= {min_speed_visible} {unit} fuer die Windrose.")
+            return
+
+        wd = wd_all[mask_visible]
+        ws = ws_all[mask_visible]
+
+        vmax = float(ws.max())
+        vmax_date = df_merged.loc[ws_all.argmax(), "timestamp"]
+        if show:
+            print(
+                f"Max wind speed (sichtbar): {vmax} {unit} | "
+                f"ausgeblendet: {hidden_frac:.1f}% (< {min_speed_visible} {unit})"
+            )
+
+        # Windrose: COUNTS plotten, damit wir danach Prozent bezogen auf ALLE anzeigen koennen
+        ax = WindroseAxes.from_ax()
+        ax.bar(
+            wd,
+            ws,
+            normed=False,     # <-- wichtig: counts statt Prozent
+            nsector=16,
+            edgecolor="white",
+            opening=0.8,
+        )
+
+        ax.set_legend(title=f"Wind Speed [{unit}]", loc="lower right", bbox_to_anchor=(1.1, 0))
+
+        # Radius-Achse als Prozent von ALLEN Samples formatieren
+        # windrose radius ticks sind counts (max pro sektor). Wir labeln sie als count/n_all*100.
+        def _count_to_percent(x, pos):
+            return f"{(x / n_all) * 100:.0f}%"
+
+        ax.yaxis.set_major_formatter(mtick.FuncFormatter(_count_to_percent))
+
+        if title is None:
+            title = f"Windrose: {sensor_dir.alias} & {sensor_spd.alias}"
+        title = (f"{title} \n"
+            f"< {min_speed_visible} {unit} removed: {hidden_frac:.1f}% of N={n_all}\n"
+            f"Max: {vmax:.2f} {unit} at {format_iso_timestamp(vmax_date, '%Y-%m-%d %H:%M')}"
+        )
+        plt.title(title)
+
+        if filename:
+            plt.savefig(filename, transparent=True)
+            print(f"📁 Windrose gespeichert unter: {filename}")
+
+        if show:
+            plt.show()
+
+        plt.close()
+
     def multiplot_sensor_values(self, table_key, sensor_keys, start_time=None, stop_time=None,
                             filename=None, title=None, show=False, by_alias=True):
         """
