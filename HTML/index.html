@@ -109,11 +109,7 @@
         status.textContent = "⏳ Update läuft ...";
 
         try {
-            const response = await fetch("/api/update", {
-                method: "POST"
-            });
-
-            const result = await response.json();
+            const result = await API.updateReports();
 
             if (result.ok) {
                 status.textContent = "✅ Reports erfolgreich aktualisiert";
@@ -126,5 +122,6 @@
         }
     }
 </script>
+<script src="api.js"></script>
 </body>
 </html>
