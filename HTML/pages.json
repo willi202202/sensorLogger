@@ -13,6 +13,10 @@
       "file": "weather/table_statistics.html"
     },
     {
+      "title": "Alarm Settings",
+      "file": "weather/alarm_settings.html"
+    },
+    {
       "title": "Day TH Dashboard",
       "file": "weather/day_th.html"
     },
