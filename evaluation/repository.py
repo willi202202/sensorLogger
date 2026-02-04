@@ -17,6 +17,8 @@ from evaluation.utils import format_iso_timestamp, fmt
 from evaluation.SensorStats import SensorStats
 from evaluation.exceptions import ConfigError, DatabaseFileNotFound, TableNotFound, ColumnNotFound, Database
 
+fig_width = 7  # Standard Plot-Breite
+
 def _parse_db_timestamp(ts: str) -> datetime:
     """Konvertiert DB-ISO-String '...Z' in datetime."""
     return datetime.fromisoformat(ts.rstrip("Z"))
@@ -367,7 +369,7 @@ class SensorRepository:
             color = "blue"
 
         # Diagramm erstellen
-        plt.figure(figsize=(11, 6))
+        plt.figure(figsize=(fig_width, 6))
         plt.plot(df["timestamp"], df["value"], linestyle="-", color=color, label="Messwerte")
 
         # Warn- & Alarmbereiche einzeichnen (horizontal)
@@ -559,7 +561,7 @@ class SensorRepository:
             return
 
         n_units = len(grouped)
-        fig, axes = plt.subplots(n_units, 1, sharex=True, figsize=(11, 3 * n_units))
+        fig, axes = plt.subplots(n_units, 1, sharex=True, figsize=(fig_width, 3 * n_units))
 
         if n_units == 1:
             axes = [axes]
@@ -618,7 +620,7 @@ class SensorRepository:
         Erzeugt eine Tabelle mit Statistikwerten für mehrere Sensoren und speichert sie als Bild.
 
         Spalten:
-        Sensor, First Value, Last Value, Mean, Min, Max
+        Sensor, Last Value, Mean, Min, Max
         """
 
         rows = []
@@ -635,9 +637,8 @@ class SensorRepository:
 
             
 
-            # First / Last
-            first_val = df["value"].iloc[0]
-            last_val = df["value"].iloc[-1]
+            # Aktueller Wert
+            act_val = df["value"].iloc[-1]
             # Min / Max / Mean
             min_val = df["value"].min()
             max_val = df["value"].max()
@@ -649,8 +650,7 @@ class SensorRepository:
 
             rows.append([
                 sensor_name,
-                fmt(first_val, sensor),
-                fmt(last_val, sensor),
+                fmt(act_val, sensor),
                 fmt(mean_val, sensor),
                 fmt(min_val, sensor),
                 fmt(max_val, sensor),
@@ -660,12 +660,12 @@ class SensorRepository:
             print("⚠️ Keine Daten für irgendeinen Sensor gefunden – keine Tabelle erzeugt.")
             return
 
-        col_labels = ["Sensor", "First Value", "Last Value", "Mean", "Min", "Max"]
+        col_labels = ["Sensor", "Act. Value", "Mean", "Min", "Max"]
 
         # --- Tabelle als Bild zeichnen ---
         n_rows = len(rows)
         fig_height = 1.2 + 0.4 * n_rows  # dynamische Höhe abhängig von Anzahl Zeilen
-        fig, ax = plt.subplots(figsize=(10, fig_height))
+        fig, ax = plt.subplots(figsize=(fig_width, fig_height))
         ax.axis("off")
         
         table = ax.table(
@@ -750,19 +750,19 @@ class SensorRepository:
 
                 if alarm_low is not None and alarm_high is not None:
                     if last_val < alarm_low:
-                        status = "alarm (to low)"
+                        status = "alarm (under)"
                     elif last_val > alarm_high:
-                        status = "alarm (to high)"
+                        status = "alarm (over)"
                     elif warn_low is not None and warn_high is not None:
                         if last_val < warn_low:
-                            status = "warning (to low)"
+                            status = "warning (under)"
                         elif last_val > warn_high:
-                            status = "warning (to high)"    
+                            status = "warning (over)"    
                 elif warn_low is not None and warn_high is not None:
                     if last_val < warn_low:
-                        status = "warning (to low)"
+                        status = "warning (under)"
                     elif last_val > warn_high:
-                        status = "warning (to high)"    
+                        status = "warning (over)"    
                 else:
                     status = ""
 
@@ -773,12 +773,12 @@ class SensorRepository:
             print("⚠️ Keine Daten für die angegebenen Sensoren.")
             return
 
-        col_labels = ["Sensor", "Last Value", "Time", "Status"]
+        col_labels = ["Sensor", "Act. Value", "Time", "Status"]
 
         # --- Tabelle als Bild zeichnen ---
         n_rows = len(rows)
         fig_height = 1.2 + 0.4 * n_rows
-        fig, ax = plt.subplots(figsize=(10, fig_height))
+        fig, ax = plt.subplots(figsize=(fig_width, fig_height))
         ax.axis("off")
 
         table = ax.table(
@@ -800,9 +800,9 @@ class SensorRepository:
         status_col_idx = col_labels.index("Status")
         for row_idx, status in enumerate(statuses, start=1):  # row 0 = Header
             cell = table[row_idx, status_col_idx]
-            if status == "alarm (to low)" or status == "alarm (to high)":
+            if status == "alarm (under)" or status == "alarm (over)":
                 cell.set_facecolor("lightcoral")
-            elif status == "warning (to low)" or status == "warning (to high)":
+            elif status == "warning (under)" or status == "warning (over)":
                 cell.set_facecolor("khaki")
             elif status == "normal":
                 cell.set_facecolor("lightgreen")
