@@ -2,6 +2,7 @@
 
 sudo cp index.html /var/www/index.html
 sudo cp pages.json /var/www/pages.json
+sudo cp api.js /var/www/api.js
 
 sudo cp day_th.html /var/www/weather/day_th.html
 sudo cp week_th.html /var/www/weather/week_th.html
