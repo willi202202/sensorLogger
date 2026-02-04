@@ -17,7 +17,8 @@ from evaluation.utils import format_iso_timestamp, fmt
 from evaluation.SensorStats import SensorStats
 from evaluation.exceptions import ConfigError, DatabaseFileNotFound, TableNotFound, ColumnNotFound, Database
 
-fig_width = 7  # Standard Plot-Breite
+FIG_WIDTH_TABLE = 7  # Standard Plot-Breite
+FIG_WIDTH_GRAPH = 10  # Breitere Plots für Graphen
 
 def _parse_db_timestamp(ts: str) -> datetime:
     """Konvertiert DB-ISO-String '...Z' in datetime."""
@@ -369,7 +370,7 @@ class SensorRepository:
             color = "blue"
 
         # Diagramm erstellen
-        plt.figure(figsize=(fig_width, 6))
+        plt.figure(figsize=(FIG_WIDTH_GRAPH, 6))
         plt.plot(df["timestamp"], df["value"], linestyle="-", color=color, label="Messwerte")
 
         # Warn- & Alarmbereiche einzeichnen (horizontal)
@@ -561,7 +562,7 @@ class SensorRepository:
             return
 
         n_units = len(grouped)
-        fig, axes = plt.subplots(n_units, 1, sharex=True, figsize=(fig_width, 3 * n_units))
+        fig, axes = plt.subplots(n_units, 1, sharex=True, figsize=(FIG_WIDTH_GRAPH, 3 * n_units))
 
         if n_units == 1:
             axes = [axes]
@@ -665,7 +666,7 @@ class SensorRepository:
         # --- Tabelle als Bild zeichnen ---
         n_rows = len(rows)
         fig_height = 1.2 + 0.4 * n_rows  # dynamische Höhe abhängig von Anzahl Zeilen
-        fig, ax = plt.subplots(figsize=(fig_width, fig_height))
+        fig, ax = plt.subplots(figsize=(FIG_WIDTH_TABLE, fig_height))
         ax.axis("off")
         
         table = ax.table(
@@ -778,7 +779,7 @@ class SensorRepository:
         # --- Tabelle als Bild zeichnen ---
         n_rows = len(rows)
         fig_height = 1.2 + 0.4 * n_rows
-        fig, ax = plt.subplots(figsize=(fig_width, fig_height))
+        fig, ax = plt.subplots(figsize=(FIG_WIDTH_TABLE, fig_height))
         ax.axis("off")
 
         table = ax.table(
