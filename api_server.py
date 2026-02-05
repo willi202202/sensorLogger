@@ -1,6 +1,7 @@
 # api_server.py
 import logging
 import os
+import json
 from flask import Flask, jsonify, request
 from evaluation.generate_reports import generate_reports
 from alarm_config import AlarmConfig
@@ -11,8 +12,21 @@ log = logging.getLogger("api")
 app = Flask(__name__)
 
 # In-Memory Alarm-Konfiguration (wird von Frontend aktualisiert)
-alarm_config = AlarmConfig(enbutton=[])
-log.info(f"Alarm-Konfiguration initialisiert: {alarm_config}")
+# Laden der Default-Einstellungen aus alarm_button.json beim Start
+ALARM_JSON_PATH = os.path.join(os.path.dirname(__file__), "config", "alarm_button_config.json")
+
+try:
+    if os.path.exists(ALARM_JSON_PATH):
+        with open(ALARM_JSON_PATH, "r", encoding="utf-8") as f:
+            alarm_data = json.load(f)
+        alarm_config = AlarmConfig.from_dict(alarm_data)
+        log.info(f"✅ Alarm-Konfiguration vom Start geladen: {ALARM_JSON_PATH}")
+    else:
+        alarm_config = AlarmConfig(enbutton=[])
+        log.warning(f"⚠️ alarm_button.json nicht gefunden: {ALARM_JSON_PATH}")
+except Exception as e:
+    log.error(f"❌ Fehler beim Laden von alarm_button.json: {e}")
+    alarm_config = AlarmConfig(enbutton=[])
 
 
 @app.route("/update", methods=["POST"])
