@@ -4,12 +4,17 @@
     <meta charset="UTF-8">
     <title>Wetterstation W (MONTH)</title>
     <style>
+        * {
+            box-sizing: border-box;
+        }
+
         body {
             font-family: system-ui, sans-serif;
             margin: 0;
             padding: 20px;
             background: #f3f3f3;
             text-align: center;
+            overflow-x: hidden;
         }
 
         h1 {
@@ -23,6 +28,7 @@
             padding: 20px;
             border-radius: 12px;
             box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+            overflow: visible;
         }
 
         #status-image {
@@ -30,6 +36,7 @@
             border: 1px solid #ccc;
             border-radius: 10px;
             margin-bottom: 25px;
+            display: block;
         }
 
         #main-image {
@@ -37,6 +44,8 @@
             height: auto;
             border-radius: 8px;
             border: 1px solid #ddd;
+            display: block;
+            max-height: none;
         }
 
         #caption {
@@ -127,7 +136,8 @@
         function showImage(index) {
             if (images.length === 0) return;
 
-            currentIndex = Math.max(0, Math.min(index, images.length - 1));
+            currentIndex = index % images.length;
+            if (currentIndex < 0) currentIndex += images.length;
 
             const img = images[currentIndex];
             document.getElementById("main-image").src = img;
@@ -135,9 +145,6 @@
             document.getElementById("caption").textContent = img.replace(basePath, "");
             document.getElementById("index-info").textContent =
                 `Bild ${currentIndex + 1} von ${images.length}`;
-
-            document.getElementById("prev-btn").disabled = (currentIndex === 0);
-            document.getElementById("next-btn").disabled = (currentIndex === images.length - 1);
         }
 
         function nextImage() { showImage(currentIndex + 1); }

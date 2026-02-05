@@ -519,7 +519,8 @@ class SensorRepository:
             f"< {min_speed_visible} {unit} removed: {hidden_frac:.1f}% of N={n_all}\n"
             f"Max: {vmax:.2f} {unit} at {format_iso_timestamp(vmax_date, '%Y-%m-%d %H:%M')}"
         )
-        plt.title(title)
+        plt.title(title, pad=20)
+        plt.tight_layout()
 
         if filename:
             plt.savefig(filename, transparent=True)
