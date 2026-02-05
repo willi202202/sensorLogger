@@ -494,7 +494,9 @@ class SensorRepository:
             )
 
         # Windrose: COUNTS plotten, damit wir danach Prozent bezogen auf ALLE anzeigen koennen
-        ax = WindroseAxes.from_ax()
+        # Explizite Figure-Größe für ausreichend Platz oben für 3-zeiligen Titel
+        fig = plt.figure(figsize=(10, 8))
+        ax = WindroseAxes.from_ax(fig=fig)
         ax.bar(
             wd,
             ws,
@@ -519,8 +521,8 @@ class SensorRepository:
             f"< {min_speed_visible} {unit} removed: {hidden_frac:.1f}% of N={n_all}\n"
             f"Max: {vmax:.2f} {unit} at {format_iso_timestamp(vmax_date, '%Y-%m-%d %H:%M')}"
         )
-        plt.title(title, pad=20)
-        plt.subplots_adjust(top=0.85)
+        plt.title(title, pad=25, fontsize=10)
+        plt.subplots_adjust(top=0.78)
 
         if filename:
             plt.savefig(filename, transparent=True)
