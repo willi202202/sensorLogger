@@ -3,7 +3,7 @@ import logging
 import os
 from flask import Flask, jsonify, request
 from evaluation.generate_reports import generate_reports
-from alarm import AlarmConfig
+from alarm_config import AlarmConfig
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger("api")
@@ -40,14 +40,17 @@ def update_alarms():
     
     try:
         data = request.get_json()
+        print(f"📨 POST /api/alarms: {data}")  # Debug
         
         # Ersetze die komplette Konfiguration mit den Daten vom Frontend
         alarm_config = AlarmConfig.from_dict(data)
         log.info("Alarm-Einstellungen vom Frontend aktualisiert")
+        print(f"✅ Konfiguration aktualisiert: {alarm_config}\n")  # Debug
         
         return jsonify({"ok": True, "message": "Alarm-Einstellungen gespeichert", "alarms": alarm_config.to_dict()}), 200
 
     except Exception as e:
+        print(f"❌ FEHLER in POST /api/alarms: {e}\n")  # Debug
         log.exception("Fehler beim Update der Alarm-Einstellungen")
         return jsonify({"ok": False, "error": str(e)}), 500
 
