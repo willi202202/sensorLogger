@@ -520,7 +520,7 @@ class SensorRepository:
             f"Max: {vmax:.2f} {unit} at {format_iso_timestamp(vmax_date, '%Y-%m-%d %H:%M')}"
         )
         plt.title(title, pad=20)
-        plt.tight_layout()
+        plt.subplots_adjust(top=0.85)
 
         if filename:
             plt.savefig(filename, transparent=True)
