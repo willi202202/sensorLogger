@@ -37,6 +37,7 @@
             height: auto;
             border-radius: 8px;
             border: 1px solid #ddd;
+            display: block;
         }
 
         #caption {
@@ -126,7 +127,8 @@
         function showImage(index) {
             if (images.length === 0) return;
 
-            currentIndex = Math.max(0, Math.min(index, images.length - 1));
+            currentIndex = index % images.length;
+            if (currentIndex < 0) currentIndex += images.length;
 
             const img = images[currentIndex];
             document.getElementById("main-image").src = img;
@@ -134,9 +136,6 @@
             document.getElementById("caption").textContent = img.replace(basePath, "");
             document.getElementById("index-info").textContent =
                 `Bild ${currentIndex + 1} von ${images.length}`;
-
-            document.getElementById("prev-btn").disabled = (currentIndex === 0);
-            document.getElementById("next-btn").disabled = (currentIndex === images.length - 1);
         }
 
         function nextImage() { showImage(currentIndex + 1); }
