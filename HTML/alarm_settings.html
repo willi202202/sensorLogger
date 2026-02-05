@@ -180,8 +180,16 @@
         // JSON laden
         async function loadConfig() {
             try {
-                const response = await fetch("alarm_button.json");
-                alarmConfig = await response.json();
+                // Versuche vom Backend zu laden
+                const response = await fetch("http://127.0.0.1:8001/api/alarms");
+                const data = await response.json();
+                if (data.ok) {
+                    alarmConfig = data.alarms;
+                } else {
+                    // Fallback auf lokale JSON
+                    const fallback = await fetch("alarm_button.json");
+                    alarmConfig = await fallback.json();
+                }
                 renderAlarms();
             } catch (error) {
                 showMessage("Fehler beim Laden der Konfiguration", "error");
@@ -262,8 +270,30 @@
             alarm.default_alarm = [minVal, maxVal];
             showMessage(`✓ ${alarm.button_title} gespeichert: [${minVal}, ${maxVal}]`, "success");
             
-            // Optional: Hier könnte man die Änderung zum Server senden
-            // saveToServer(alarmConfig);
+            // Sende Änderung zum Backend
+            saveToBackend();
+        }
+
+        async function saveToBackend() {
+            try {
+                const response = await fetch("http://127.0.0.1:8001/api/alarms", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify(alarmConfig)
+                });
+
+                const data = await response.json();
+                if (data.ok) {
+                    console.log("✅ Backend aktualisiert");
+                } else {
+                    showMessage("Fehler beim Speichern: " + data.error, "error");
+                }
+            } catch (error) {
+                console.error("Fehler beim Senden zum Backend:", error);
+                showMessage("Fehler beim Speichern zum Backend", "error");
+            }
         }
 
         function showMessage(text, type) {
