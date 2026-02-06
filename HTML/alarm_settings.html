@@ -181,19 +181,17 @@
         async function loadConfig() {
             try {
                 console.log("🔄 Versuche Config vom Backend zu laden...");
-                const response = await fetch("http://127.0.0.1:8001/api/alarms");
-                console.log("Response Status:", response.status);
                 
-                const data = await response.json();
-                console.log("Response Data:", data);
+                // Nutze API.js für den Request
+                const data = await API.get("/alarms");
+                console.log("✅ Config vom Backend geladen:", data);
                 
                 if (data.ok) {
                     alarmConfig = data.alarms;
-                    console.log("✅ Config vom Backend geladen");
+                    renderAlarms();
                 } else {
                     throw new Error("Backend Error: " + data.error);
                 }
-                renderAlarms();
             } catch (error) {
                 console.error("❌ Fehler beim Laden:", error);
                 showMessage("Fehler beim Laden der Konfiguration: " + error.message, "error");
@@ -279,15 +277,10 @@
 
         async function saveToBackend() {
             try {
-                const response = await fetch("http://127.0.0.1:8001/api/alarms", {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json"
-                    },
-                    body: JSON.stringify(alarmConfig)
-                });
-
-                const data = await response.json();
+                console.log("📤 Sende Config zum Backend");
+                const data = await API.post("/alarms", alarmConfig);
+                console.log("Backend Response:", data);
+                
                 if (data.ok) {
                     console.log("✅ Backend aktualisiert");
                 } else {
