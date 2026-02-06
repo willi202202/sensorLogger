@@ -29,14 +29,14 @@ try:
             alarm_data = json.load(f)
         alarm_config = AlarmConfig.from_dict(alarm_data)
         log.info(f"✅ Alarm-Konfiguration vom Start geladen: {ALARM_JSON_PATH}")
-        print(f"✅ Alarm-Konfiguration geladen: {alarm_config}")
+        print(f"✅ Alarm-Konfiguration geladen: {alarm_config}", flush=True)
     else:
         alarm_config = AlarmConfig(enbutton=[])
         log.warning(f"⚠️ alarm_button_config.json nicht gefunden: {ALARM_JSON_PATH}")
-        print(f"⚠️ alarm_button_config.json nicht gefunden")
+        print(f"⚠️ alarm_button_config.json nicht gefunden", flush=True)
 except Exception as e:
     log.error(f"❌ Fehler beim Laden von alarm_button_config.json: {e}")
-    print(f"❌ Fehler beim Laden von alarm_button_config.json: {e}")
+    print(f"❌ Fehler beim Laden von alarm_button_config.json: {e}", flush=True)
     alarm_config = AlarmConfig(enbutton=[])
 
 

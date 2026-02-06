@@ -52,7 +52,7 @@ class AlarmConfig:
         """Erstelle Config aus Dictionary (z.B. von API)"""
         buttons = [AlarmButton.from_dict(btn) for btn in data.get("enbutton", [])]
         config = cls(enbutton=buttons)
-        print(f"📥 ALARM CONFIG UPDATED: {len(buttons)} Alarme geladen")
+        print(f"📥 ALARM CONFIG UPDATED: {len(buttons)} Alarme geladen", flush=True)
         return config
 
     def to_dict(self) -> Dict[str, Any]:
@@ -86,11 +86,11 @@ class AlarmConfig:
         if enabled is not None:
             alarm.default = enabled
         
-        print(f"🔔 UPDATE ALARM: {sensor_alias}")
+        print(f"🔔 UPDATE ALARM: {sensor_alias}", flush=True)
         if old_alarm != alarm.default_alarm:
-            print(f"   Alarm-Bereich: {old_alarm} → {alarm.default_alarm}")
+            print(f"   Alarm-Bereich: {old_alarm} → {alarm.default_alarm}", flush=True)
         if old_enabled != alarm.default:
-            print(f"   Aktiviert: {old_enabled} → {alarm.default}")
+            print(f"   Aktiviert: {old_enabled} → {alarm.default}", flush=True)
 
     def add_alarm(self, button_title: str, sensor_alias: str, default_alarm: Tuple[int, int], enabled: bool = True) -> None:
         """Füge neue Alarm-Einstellung hinzu"""
@@ -101,21 +101,21 @@ class AlarmConfig:
             default_alarm=default_alarm
         )
         self.enbutton.append(new_alarm)
-        print(f"➕ ADD ALARM: {sensor_alias} ({button_title})")
-        print(f"   Bereich: {default_alarm}, Aktiviert: {enabled}")
+        print(f"➕ ADD ALARM: {sensor_alias} ({button_title})", flush=True)
+        print(f"   Bereich: {default_alarm}, Aktiviert: {enabled}", flush=True)
 
     def remove_alarm(self, sensor_alias: str) -> None:
         """Entferne Alarm-Einstellung"""
         old_count = len(self.enbutton)
         self.enbutton = [btn for btn in self.enbutton if btn.sensor_alias != sensor_alias]
         if len(self.enbutton) < old_count:
-            print(f"➖ REMOVE ALARM: {sensor_alias}")
+            print(f"➖ REMOVE ALARM: {sensor_alias}", flush=True)
 
     def toggle_alarm(self, sensor_alias: str) -> None:
         """Toggle Ein/Aus für einen Sensor"""
         alarm = self.get_alarm_by_sensor(sensor_alias)
         alarm.default = not alarm.default
-        print(f"🔄 TOGGLE ALARM: {sensor_alias} → {'ON' if alarm.default else 'OFF'}")
+        print(f"🔄 TOGGLE ALARM: {sensor_alias} → {'ON' if alarm.default else 'OFF'}", flush=True)
 
     def __repr__(self) -> str:
         return f"AlarmConfig(alarms={len(self.enbutton)}, active={len(self.get_active_alarms())})"
