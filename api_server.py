@@ -40,7 +40,6 @@ except Exception as e:
     alarm_config = AlarmConfig(enbutton=[])
 
 
-@app.route("/update", methods=["POST"])
 @app.route("/api/update", methods=["POST"])
 def update():
     """Update reports endpoint"""
