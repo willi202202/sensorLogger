@@ -180,20 +180,23 @@
         // JSON laden
         async function loadConfig() {
             try {
-                // Versuche vom Backend zu laden
+                console.log("🔄 Versuche Config vom Backend zu laden...");
                 const response = await fetch("http://127.0.0.1:8001/api/alarms");
+                console.log("Response Status:", response.status);
+                
                 const data = await response.json();
+                console.log("Response Data:", data);
+                
                 if (data.ok) {
                     alarmConfig = data.alarms;
+                    console.log("✅ Config vom Backend geladen");
                 } else {
-                    // Fallback auf lokale JSON
-                    const fallback = await fetch("alarm_button.json");
-                    alarmConfig = await fallback.json();
+                    throw new Error("Backend Error: " + data.error);
                 }
                 renderAlarms();
             } catch (error) {
-                showMessage("Fehler beim Laden der Konfiguration", "error");
-                console.error(error);
+                console.error("❌ Fehler beim Laden:", error);
+                showMessage("Fehler beim Laden der Konfiguration: " + error.message, "error");
             }
         }
 

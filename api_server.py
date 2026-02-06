@@ -3,6 +3,7 @@ import logging
 import os
 import json
 from flask import Flask, jsonify, request
+from flask_cors import CORS
 from evaluation.generate_reports import generate_reports
 from alarm_config import AlarmConfig
 
@@ -10,9 +11,10 @@ logging.basicConfig(level=logging.INFO)
 log = logging.getLogger("api")
 
 app = Flask(__name__)
+CORS(app)  # Enable CORS für Frontend-Requests
 
 # In-Memory Alarm-Konfiguration (wird von Frontend aktualisiert)
-# Laden der Default-Einstellungen aus alarm_button.json beim Start
+# Laden der Default-Einstellungen aus alarm_button_config.json beim Start
 ALARM_JSON_PATH = os.path.join(os.path.dirname(__file__), "config", "alarm_button_config.json")
 
 try:
@@ -21,11 +23,14 @@ try:
             alarm_data = json.load(f)
         alarm_config = AlarmConfig.from_dict(alarm_data)
         log.info(f"✅ Alarm-Konfiguration vom Start geladen: {ALARM_JSON_PATH}")
+        print(f"✅ Alarm-Konfiguration geladen: {alarm_config}")
     else:
         alarm_config = AlarmConfig(enbutton=[])
-        log.warning(f"⚠️ alarm_button.json nicht gefunden: {ALARM_JSON_PATH}")
+        log.warning(f"⚠️ alarm_button_config.json nicht gefunden: {ALARM_JSON_PATH}")
+        print(f"⚠️ alarm_button_config.json nicht gefunden")
 except Exception as e:
-    log.error(f"❌ Fehler beim Laden von alarm_button.json: {e}")
+    log.error(f"❌ Fehler beim Laden von alarm_button_config.json: {e}")
+    print(f"❌ Fehler beim Laden von alarm_button_config.json: {e}")
     alarm_config = AlarmConfig(enbutton=[])
 
 
