@@ -2,7 +2,7 @@
   "pages": [
     {
       "title": "Raspi-Report",
-      "file": "raspi_report/raspi_report.html"
+      "file": "reports/raspi_report.html"
     },
     {
       "title": "Webcam API",
