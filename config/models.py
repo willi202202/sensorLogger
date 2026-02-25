@@ -65,6 +65,7 @@ class Sensor:
     field_type: str                  # "float" | "string" | "boolean" | ...
     unit: str = ""
     round: Optional[int] = None
+    factor: float = 1.0
 
     limits: Tuple[Optional[float], Optional[float]] = (None, None)
     warn: Tuple[Optional[float], Optional[float]] = (None, None)
@@ -75,7 +76,7 @@ class Sensor:
     invalid_map: Dict[str, Any] = field(default_factory=dict)
 
     def __repr__(self) -> str:
-        return f"Sensor(key={self.key}, alias={self.alias}, type={self.field_type}, unit={self.unit}, round={self.round}, limits={self.limits}, warn={self.warn}, alarm={self.alarm}, plot_limits={self.plot_limits}, color={self.color}, invalid_map={self.invalid_map})"
+        return f"Sensor(key={self.key}, alias={self.alias}, type={self.field_type}, unit={self.unit}, factor={self.factor}, round={self.round}, limits={self.limits}, warn={self.warn}, alarm={self.alarm}, plot_limits={self.plot_limits}, color={self.color}, invalid_map={self.invalid_map})"
 
     @staticmethod
     def from_dict(key: str, d: Dict[str, Any]) -> "Sensor":
@@ -85,6 +86,7 @@ class Sensor:
             alias=d.get("alias", key),
             field_type=d.get("field_type", "string"),
             unit=d.get("unit", ""),
+            factor=d.get("factor", 1.0),
             round=d.get("round", None),
             limits=_to_tuple2(d.get("limits")),
             warn=_to_tuple2(d.get("warn")),
@@ -137,6 +139,9 @@ class Sensor:
             except Exception:
                 return mark_bad(None)
 
+            # Apply factor
+            val = val * self.factor
+
             if self.round is not None:
                 try:
                     val = round(val, int(self.round))
@@ -149,7 +154,8 @@ class Sensor:
         if t in ("int", "integer"):
             try:
                 # allows "12.0" -> 12
-                val = int(float(raw))
+                val = float(raw) * self.factor
+                val = int(val)
             except Exception:
                 return mark_bad(None)
             return (val, mapped_good)

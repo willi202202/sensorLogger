@@ -1,6 +1,6 @@
 [Unit]
 Description=Mobile Alerts Proxy Server
-After=network.target
+After=network.target mosquitto.service
 
 [Service]
 # WICHTIG: Ersetze /usr/bin/node durch den tatsächlichen Pfad, den 'which node' liefert.
