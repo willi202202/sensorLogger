@@ -20,16 +20,9 @@
         "isOpen": {
           "name": "isOpen",
           "alias": "isOpen",
-          "field_type": "bool_array",
+          "field_type": "boolean",
           "invalid_map": {"-9999": null, "-9999.0": null},
           "unit": ""
-        },
-		    "eventTimes": {
-          "name": "eventTimes",
-          "alias": "eventTimes",
-          "field_type": "int_array",
-          "invalid_map": {"-9999": null, "-9999.0": null},
-          "unit": "sec"
         },
         "battery": {
           "name": "battery",
