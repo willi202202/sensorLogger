@@ -4,8 +4,8 @@
   "NTFY": {
     "ENABLED": true,
     "SERVER": "https://ntfy.sh",
-    "TOPIC": "raspiroman",
-    "TOKEN": "",
+    "TOPIC": "weatherroman",
+    "TOKEN": "tk_e1mfue32woyyt037mk1pw40bhl0mc",
     "PRIORITY": 2,
     "PAYLOAD_PREVIEW_CHARS": 180
   },

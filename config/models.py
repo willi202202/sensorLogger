@@ -109,29 +109,71 @@ class Sensor:
         if raw is None:
             return mark_bad(None)
         
-        # ---- 2) normalize list/tuple payloads ---------------------------------
-        # Take first element of tuple/list for numeric types
-        if isinstance(raw, (list, tuple)) and len(raw) > 0:
+        # ---- type conversion ------------------------------------------------
+        t = (self.field_type or "string").lower()
+        
+        # ---- 2) normalize list/tuple payloads for non-array types -----------
+        # Take first element of tuple/list for numeric types (but NOT for arrays)
+        if isinstance(raw, (list, tuple)) and len(raw) > 0 and "array" not in t:
             raw = raw[0]
         #print("Debug: first element:", raw, " type:", type(raw).__name__)
 
-        # ---- 1) invalid_map (string key compare) ------------------------------
-        key = str(raw).strip()
-        #print("sanitize raw:", raw, "key:", key, " type:", self.field_type, " invalid_map:", self.invalid_map)
-        if key in self.invalid_map:
-            raw = self.invalid_map[key]
-            # If mapping leads to None => invalid
-            if raw is None:
-                return mark_bad(None)
-            # Otherwise: value exists; you can decide if "mapped" counts as good.
-            # Here we treat mapped replacements as good:
-            # (If you want "mapped always bad", set mapped_good=False.)
-            mapped_good = False
+        # ---- 1) invalid_map (string key compare) - skip for arrays -----------
+        if "array" not in t:
+            key = str(raw).strip()
+            #print("sanitize raw:", raw, "key:", key, " type:", self.field_type, " invalid_map:", self.invalid_map)
+            if key in self.invalid_map:
+                raw = self.invalid_map[key]
+                # If mapping leads to None => invalid
+                if raw is None:
+                    return mark_bad(None)
+                # Otherwise: value exists; you can decide if "mapped" counts as good.
+                # Here we treat mapped replacements as good:
+                # (If you want "mapped always bad", set mapped_good=False.)
+                mapped_good = False
+            else:
+                mapped_good = True
         else:
             mapped_good = True
-        
+
         # ---- 3) type conversion ------------------------------------------------
-        t = (self.field_type or "string").lower()
+
+        if t in ("bool_array",):
+            # Expects a list of booleans, stores as JSON
+            if not isinstance(raw, (list, tuple)):
+                return mark_bad(None)
+            try:
+                # Convert each element to bool using _parse_bool
+                bool_list = []
+                for item in raw:
+                    b, ok = _parse_bool(item)
+                    if not ok:
+                        return mark_bad(None)  # Invalid bool in array
+                    bool_list.append(b)
+                # Store as JSON string
+                result = json.dumps(bool_list)
+                return (result, mapped_good)
+            except Exception:
+                return mark_bad(None)
+
+        if t in ("int_array",):
+            # Expects a list of integers, stores as JSON
+            if not isinstance(raw, (list, tuple)):
+                return mark_bad(None)
+            try:
+                # Convert each element to int
+                int_list = []
+                for item in raw:
+                    try:
+                        val = int(float(item) * self.factor)
+                        int_list.append(val)
+                    except (TypeError, ValueError):
+                        return mark_bad(None)  # Invalid int in array
+                # Store as JSON string
+                result = json.dumps(int_list)
+                return (result, mapped_good)
+            except Exception:
+                return mark_bad(None)
 
         if t in ("float", "double", "number"):
             try:

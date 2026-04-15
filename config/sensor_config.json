@@ -7,6 +7,45 @@
     "COMPACT_LOG_ENABLED": false
   },
   "TABLE": {
+	"measurements_swt1": {
+      "name": "measurements_swt1",
+      "alias": "swt1",
+      "info": "Switch Sensor 1",
+      "sensor_id": "1029ea6f5638",
+      "TIMESTAMP":{
+        "name": "utms",
+        "type": "iso8601"
+      },
+      "SENSORS": {
+        "isOpen": {
+          "name": "isOpen",
+          "alias": "isOpen",
+          "field_type": "bool_array",
+          "invalid_map": {"-9999": null, "-9999.0": null},
+          "unit": ""
+        },
+		    "eventTimes": {
+          "name": "eventTimes",
+          "alias": "eventTimes",
+          "field_type": "int_array",
+          "invalid_map": {"-9999": null, "-9999.0": null},
+          "unit": "sec"
+        },
+        "battery": {
+          "name": "battery",
+          "alias": "Battery_Status",
+          "field_type": "boolean",
+          "invalid_map": {"-9999": null, "-9999.0": null},
+          "unit": "",
+          "factor": 1,
+          "round": 0,
+          "limits": [0, 1],
+          "alarm": [0.9, 1.1],
+          "plot_limits": [0, 1],
+          "color": "green"
+        }
+      }
+    },
     "measurements_w": {
       "name": "measurements_w",
       "alias": "w",
