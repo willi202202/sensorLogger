@@ -7,11 +7,75 @@
     "COMPACT_LOG_ENABLED": false
   },
   "TABLE": {
-	"measurements_swt1": {
+    "measurements_swt1": {
       "name": "measurements_swt1",
       "alias": "swt1",
       "info": "Switch Sensor 1",
+      "sensor_id": "10118285512a",
+      "TIMESTAMP":{
+        "name": "utms",
+        "type": "iso8601"
+      },
+      "SENSORS": {
+        "isOpen": {
+          "name": "isOpen",
+          "alias": "isOpen",
+          "field_type": "boolean",
+          "invalid_map": {"-9999": null, "-9999.0": null},
+          "unit": ""
+        },
+        "battery": {
+          "name": "battery",
+          "alias": "Battery_Status",
+          "field_type": "boolean",
+          "invalid_map": {"-9999": null, "-9999.0": null},
+          "unit": "",
+          "factor": 1,
+          "round": 0,
+          "limits": [0, 1],
+          "alarm": [0.9, 1.1],
+          "plot_limits": [0, 1],
+          "color": "green"
+        }
+      }
+    },
+	  "measurements_swt2": {
+      "name": "measurements_swt2",
+      "alias": "swt2",
+      "info": "Switch Sensor 2",
       "sensor_id": "1029ea6f5638",
+      "TIMESTAMP":{
+        "name": "utms",
+        "type": "iso8601"
+      },
+      "SENSORS": {
+        "isOpen": {
+          "name": "isOpen",
+          "alias": "isOpen",
+          "field_type": "boolean",
+          "invalid_map": {"-9999": null, "-9999.0": null},
+          "unit": ""
+        },
+        "battery": {
+          "name": "battery",
+          "alias": "Battery_Status",
+          "field_type": "boolean",
+          "invalid_map": {"-9999": null, "-9999.0": null},
+          "unit": "",
+          "factor": 1,
+          "round": 0,
+          "limits": [0, 1],
+          "alarm": [0.9, 1.1],
+          "plot_limits": [0, 1],
+          "color": "green"
+        }
+      }
+    },
+    "measurements_swt3": {
+      "name": "measurements_swt3",
+      "alias": "swt3",
+      "info": "Switch Sensor 3",
+      "sensor_id": "999999999999",
       "TIMESTAMP":{
         "name": "utms",
         "type": "iso8601"
