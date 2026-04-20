@@ -75,7 +75,7 @@
       "name": "measurements_swt3",
       "alias": "swt3",
       "info": "Switch Sensor 3",
-      "sensor_id": "999999999999",
+      "sensor_id": "102096ef3b96",
       "TIMESTAMP":{
         "name": "utms",
         "type": "iso8601"
